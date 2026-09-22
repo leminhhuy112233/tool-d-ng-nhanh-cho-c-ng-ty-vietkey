@@ -11,6 +11,7 @@ import { TemplateManager } from './pages/TemplateManager'
 import { Settings } from './pages/Settings'
 import { History } from './pages/History'
 import { DynamicForm } from './pages/DynamicForm'
+import { PdfTools } from './pages/PdfTools'
 import { useThemeStore } from './stores/theme.store'
 import { playClickSound } from './lib/sound'
 
@@ -82,6 +83,14 @@ function AnimatedRoutes() {
             element={
               <PageTransition>
                 <Settings />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/pdf-tools"
+            element={
+              <PageTransition>
+                <PdfTools />
               </PageTransition>
             }
           />

@@ -175,6 +175,64 @@ export interface AnalyzedTemplateResult {
   processedDocxBase64?: string
 }
 
+// ===== PDF Tools Types =====
+export interface PdfPageInfo {
+  index: number
+  width: number
+  height: number
+  rotation: number
+}
+
+export interface PdfOpenResult {
+  filePath?: string
+  fileName?: string
+  base64?: string
+  pageCount?: number
+  pages?: PdfPageInfo[]
+  error?: string
+}
+
+export interface PdfOperationResult {
+  base64?: string
+  pageCount?: number
+  pages?: PdfPageInfo[]
+  error?: string
+  success?: boolean
+  canceled?: boolean
+  filePath?: string
+  outputPaths?: string[]
+  mergedFiles?: string[]
+}
+
+export interface PdfAnnotationData {
+  type: 'image' | 'text'
+  pageIndex: number
+  x: number
+  y: number
+  width: number
+  height: number
+  imageBase64?: string
+  imageType?: 'png' | 'jpg'
+  text?: string
+  fontSize?: number
+  color?: { r: number; g: number; b: number }
+  opacity?: number
+}
+
+export interface PdfWatermarkOptions {
+  text: string
+  opacity?: number
+  fontSize?: number
+  color?: { r: number; g: number; b: number }
+  rotationDegrees?: number
+  pageIndices?: number[]
+}
+
+export interface PdfSplitRange {
+  start: number
+  end: number
+}
+
 export interface ElectronAPI {
   // Settings
   getSetting: (key: string) => Promise<string | null>
@@ -199,17 +257,17 @@ export interface ElectronAPI {
   // File dialogs
   openFileDialog: (filters?: { name: string; extensions: string[] }[]) => Promise<string | null>
   openDirectoryDialog: () => Promise<string | null>
-  saveFileDialog: (defaultName: string, filters?: { name: string; extensions: string[] }[]) => Promise<string | null>
+  saveFileDialog: (defaultName?: string, filters?: { name: string; extensions: string[] }[]) => Promise<string | null>
 
   // Partner Memory Store
-  getPartners: () => Promise<PartnerProfile[]>
-  savePartner: (partner: Omit<PartnerProfile, 'id' | 'updatedAt'>) => Promise<void>
+  getPartners: () => Promise<any[]>
+  savePartner: (profile: any) => Promise<any>
 
   // Export History
-  getHistory: () => Promise<ExportHistoryRecord[]>
-  addHistoryRecord: (record: Omit<ExportHistoryRecord, 'id' | 'createdAt'>) => Promise<void>
-  deleteHistoryRecord: (id: string) => Promise<void>
-  clearHistory: () => Promise<void>
+  getHistory: () => Promise<any[]>
+  addHistoryRecord: (record: any) => Promise<any>
+  deleteHistoryRecord: (id: string) => Promise<boolean>
+  clearHistory: () => Promise<boolean>
 
   // Document Exports
   exportContract: (data: ContractData, targetPath: string) => Promise<ExportResult>
@@ -222,8 +280,8 @@ export interface ElectronAPI {
   parseAdvanceRequestWithAI: (rawText: string) => Promise<Partial<AdvanceRequestData>>
 
   // Template management
-  openTemplatesFolder: () => Promise<void>
-  openTemplateFile: (fileName: string) => Promise<void>
+  openTemplatesFolder: () => Promise<string[]>
+  openTemplateFile: (fileName: string) => Promise<string>
 
   // Custom Dynamic Template Management (MỚI)
   analyzeTemplate: (filePath: string) => Promise<AnalyzedTemplateResult>
@@ -243,6 +301,39 @@ export interface ElectronAPI {
 
   // App info
   getAppVersion: () => string
+
+  // PDF Tools
+  pdfOpenFile: () => Promise<PdfOpenResult | null>
+  pdfReadFile: (filePath: string) => Promise<PdfOpenResult>
+  pdfSaveFile: (pdfBase64: string, suggestedName?: string) => Promise<PdfOperationResult>
+  pdfDeletePages: (pdfBase64: string, pageIndices: number[]) => Promise<PdfOperationResult>
+  pdfRotatePages: (pdfBase64: string, pageIndices: number[], angleDegrees: number) => Promise<PdfOperationResult>
+  pdfReorderPages: (pdfBase64: string, newOrder: number[]) => Promise<PdfOperationResult>
+  pdfDuplicatePages: (pdfBase64: string, pageIndices: number[]) => Promise<PdfOperationResult>
+  pdfExtractPages: (pdfBase64: string, pageIndices: number[]) => Promise<PdfOperationResult>
+  pdfSplit: (pdfBase64: string, ranges: PdfSplitRange[]) => Promise<PdfOperationResult>
+  pdfMerge: () => Promise<PdfOperationResult>
+  pdfFlattenAnnotations: (pdfBase64: string, annotations: PdfAnnotationData[]) => Promise<PdfOperationResult>
+  pdfAddWatermark: (pdfBase64: string, options: PdfWatermarkOptions) => Promise<PdfOperationResult>
+  pdfImagesToPdf: (images: { base64: string; type?: 'png' | 'jpg' }[]) => Promise<PdfOperationResult>
+
+  // Local Storage Hub (MỚI)
+  storageGetInfo: () => Promise<StorageHubInfo>
+  storageSetPath: (newPath: string) => Promise<{ success: boolean; path?: string; error?: string }>
+  storageOpenExplorer: (subfolder?: string) => Promise<boolean>
+  storageCreateBackup: () => Promise<{ success: boolean; backupPath?: string; error?: string }>
+  storageCleanupTemp: () => Promise<{ success: boolean; freedBytesFormatted?: string }>
+}
+
+export interface StorageHubInfo {
+  dataHubPath: string
+  databasePath: string
+  documentsPath: string
+  templatesPath: string
+  backupsPath: string
+  totalSizeFormatted: string
+  documentCount: number
+  backupCount: number
 }
 
 declare global {

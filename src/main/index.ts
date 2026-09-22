@@ -3,10 +3,34 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initStore, getPartners, savePartner, getHistory, addHistoryRecord, deleteHistoryRecord, clearHistory, getCustomTemplates, getCustomTemplateById, saveCustomTemplate, deleteCustomTemplate } from './services/database'
+import { storageManager } from './services/storage-manager'
 import { analyzeDocxTemplate } from './services/template-analyzer'
 import { registerSettingsHandlers } from './ipc/settings.ipc'
 import { registerDocumentHandlers } from './ipc/document.ipc'
+import { registerPdfHandlers } from './ipc/pdf.ipc'
+import { registerStorageHandlers } from './ipc/storage.ipc'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
+
+// Tối ưu hóa GPU & tăng tốc đồ họa phần cứng (Hardware Acceleration)
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+app.commandLine.appendSwitch('enable-native-gpu-memory-buffers')
+
+// Khóa đơn tiến trình (Single Instance Lock) — Ngăn ngừa mở nhiều bản sao gây xung đột cache
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
 
 let mainWindow: BrowserWindow | null = null
 let isMiniMode = false
@@ -181,15 +205,25 @@ function registerWindowHandlers(): void {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.vietkey.docgen')
 
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
   initStore()
+  storageManager.initStorageHub()
 
   registerWindowHandlers()
   registerSettingsHandlers()
   registerDocumentHandlers()
+  registerPdfHandlers()
+  registerStorageHandlers()
 
   createWindow()
 

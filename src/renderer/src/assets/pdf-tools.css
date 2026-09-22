@@ -1,0 +1,1896 @@
+/* ===== VietKey PDF Tools — Enterprise Stylesheet ===== */
+
+/* ===== 1. Layout chính ===== */
+.pdf-tools-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--background);
+  position: relative;
+  user-select: none;
+}
+
+/* ===== 2. Header Bar phía trên cùng ===== */
+.pdf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 30;
+  gap: 1rem;
+}
+
+.pdf-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.pdf-brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+
+.pdf-brand-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(178, 213, 229, 0.3);
+}
+
+.pdf-brand-sparkle {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  color: #fbbf24;
+}
+
+.pdf-brand-title {
+  background: linear-gradient(135deg, var(--foreground) 60%, var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.pdf-file-info-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.pdf-file-divider {
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  font-weight: 300;
+}
+
+.pdf-file-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.pdf-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pdf-status-chip.saved {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.pdf-status-chip.has-changes {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.pdf-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pdf-meta-pill {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  background: var(--secondary);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.pdf-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pdf-view-switch-group {
+  display: flex;
+  background: var(--secondary);
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.pdf-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-switch-btn.active {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.pdf-header-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 0.25rem;
+}
+
+/* ===== 3. Tabbed Ribbon Navigation ===== */
+.pdf-ribbon-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.pdf-ribbon-tabs {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.pdf-ribbon-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+
+.pdf-ribbon-tab:hover {
+  color: var(--foreground);
+}
+
+.pdf-ribbon-tab.active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.pdf-ribbon-tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  box-shadow: 0 0 8px rgba(178, 213, 229, 0.6);
+}
+
+.pdf-ribbon-content {
+  padding: 0.4rem 0.75rem;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.pdf-ribbon-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 100%;
+}
+
+.pdf-toolgroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.pdf-toolgroup-items {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pdf-toolgroup-title {
+  font-size: 0.65rem;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.pdf-ribbon-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--border);
+  margin: 0 0.35rem;
+  opacity: 0.6;
+}
+
+.pdf-ribbon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  min-width: 54px;
+  height: 52px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.pdf-ribbon-btn:hover:not(:disabled) {
+  background: var(--secondary);
+  border-color: var(--border);
+  transform: translateY(-1px);
+}
+
+.pdf-ribbon-btn.active {
+  background: rgba(178, 213, 229, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.pdf-ribbon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pdf-ribbon-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ===== 4. Content Area: Sidebar + Center Viewport ===== */
+.pdf-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  height: calc(100% - 120px);
+}
+
+/* ===== 5. Sidebar Drawer ===== */
+.pdf-sidebar-container {
+  width: 230px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 10;
+  transition: width 0.2s ease;
+}
+
+.pdf-sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--sidebar-border);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.pdf-sidebar-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.pdf-sidebar-tab-btn:hover {
+  color: var(--foreground);
+}
+
+.pdf-sidebar-tab-btn.active {
+  color: var(--foreground);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+  background: var(--card);
+}
+
+.pdf-sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pdf-thumb-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.pdf-thumb-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.pdf-thumb-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 4px 12px rgba(178, 213, 229, 0.3);
+}
+
+.pdf-thumb-card.selected {
+  background: rgba(178, 213, 229, 0.1);
+  border-color: var(--accent);
+}
+
+.pdf-thumb-card.drag-over {
+  border-top: 3px solid var(--accent);
+  transform: translateY(2px);
+}
+
+.pdf-thumb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+  padding: 0 0.15rem;
+}
+
+.pdf-thumb-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-thumb-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pdf-thumb-num {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.pdf-thumb-drag-handle {
+  cursor: grab;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+.pdf-thumb-drag-handle:hover {
+  opacity: 1;
+}
+
+.pdf-thumb-canvas-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.pdf-thumb-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+}
+
+.pdf-thumb-hover-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pdf-thumb-card:hover .pdf-thumb-hover-actions {
+  opacity: 1;
+}
+
+.pdf-thumb-mini-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pdf-thumb-mini-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.pdf-thumb-mini-btn.danger:hover {
+  background: #ef4444;
+}
+
+.pdf-sidebar-empty-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 1.5rem;
+}
+
+.pdf-signature-preview-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.pdf-sidebar-info-tab {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pdf-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.pdf-info-label {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pdf-info-val {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+/* ===== 6. Center Studio Viewport ===== */
+.pdf-viewer-area {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--background);
+  background-image: radial-gradient(rgba(178, 213, 229, 0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+  padding: 2.5rem 1rem 6rem;
+  display: flex;
+  justify-content: center;
+}
+
+.pdf-viewer-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  max-width: 100%;
+}
+
+.pdf-page-container {
+  position: relative;
+  background: #ffffff;
+  border-radius: 4px;
+  /* Ambient layered paper shadow chuẩn Studio */
+  box-shadow:
+    0 16px 40px -10px rgba(0, 0, 0, 0.45),
+    0 4px 12px -2px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+  user-select: none;
+}
+
+.pdf-page-container:hover {
+  box-shadow:
+    0 20px 50px -10px rgba(0, 0, 0, 0.55),
+    0 6px 16px -2px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(178, 213, 229, 0.3);
+}
+
+.pdf-page-container.current-page-focus {
+  outline: 2px solid rgba(178, 213, 229, 0.6);
+  outline-offset: 4px;
+}
+
+.pdf-page-canvas {
+  display: block;
+  border-radius: 4px;
+}
+
+.pdf-page-number-badge {
+  position: absolute;
+  top: -14px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--foreground);
+  background: var(--floating-bar-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid var(--floating-bar-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.pdf-page-badge-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ===== 7. Floating Glassmorphic HUD Dock ===== */
+.pdf-floating-hud {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--floating-bar-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--floating-bar-border);
+  border-radius: 9999px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(178, 213, 229, 0.15);
+  z-index: 40;
+}
+
+.pdf-hud-group {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.pdf-hud-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 0.25rem;
+  opacity: 0.6;
+}
+
+.pdf-hud-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--foreground);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-hud-btn:hover:not(:disabled) {
+  background: var(--secondary);
+  color: var(--accent);
+}
+
+.pdf-hud-btn.active {
+  background: var(--accent);
+  color: var(--primary-foreground);
+}
+
+.pdf-hud-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pdf-hud-page-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.25rem;
+}
+
+.pdf-hud-page-input {
+  width: 34px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.pdf-hud-page-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(178, 213, 229, 0.3);
+}
+
+.pdf-hud-page-total {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.pdf-hud-zoom-badge {
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--foreground);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-hud-zoom-badge:hover {
+  border-color: var(--accent);
+}
+
+.pdf-hud-zoom-popover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  min-width: 90px;
+  z-index: 50;
+}
+
+.pdf-hud-zoom-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--foreground);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.pdf-hud-zoom-item:hover {
+  background: var(--secondary);
+  color: var(--accent);
+}
+
+.pdf-hud-zoom-item.active {
+  background: rgba(178, 213, 229, 0.15);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ===== 8. Organize Mode (Chế độ Dàn trang trực quan) ===== */
+.pdf-organize-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem 6rem;
+  background: var(--background);
+  position: relative;
+}
+
+.pdf-organize-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.pdf-organize-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.pdf-organize-sub {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.pdf-organize-quick-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pdf-organize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.5rem;
+}
+
+.pdf-grid-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.65rem;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.pdf-grid-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.pdf-grid-card.selected {
+  background: rgba(178, 213, 229, 0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgba(178, 213, 229, 0.25);
+}
+
+.pdf-grid-card.drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+}
+
+.pdf-grid-card-checkbox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+}
+
+.pdf-grid-card-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pdf-grid-card-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--foreground);
+  background: var(--floating-bar-bg);
+  backdrop-filter: blur(8px);
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  z-index: 5;
+}
+
+.pdf-grid-canvas-box {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.pdf-grid-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+}
+
+.pdf-grid-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pdf-grid-card:hover .pdf-grid-card-overlay {
+  opacity: 1;
+}
+
+.pdf-grid-overlay-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: white;
+  color: #111;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.pdf-grid-overlay-btn:hover {
+  transform: scale(1.1);
+}
+
+/* ===== 9. Floating Batch Action Bar ===== */
+.pdf-batch-bar {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--floating-bar-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--floating-bar-border);
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(178, 213, 229, 0.2);
+  z-index: 50;
+}
+
+.pdf-batch-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--foreground);
+  padding: 0 0.35rem;
+}
+
+.pdf-batch-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 0.25rem;
+}
+
+.pdf-batch-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--foreground);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-batch-btn:hover {
+  background: var(--card);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.pdf-batch-btn.danger {
+  color: #ef4444;
+}
+
+.pdf-batch-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.pdf-batch-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--muted-foreground);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-batch-close-btn:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+/* ===== 10. Context Menu Chuột phải ===== */
+.pdf-context-menu {
+  position: fixed;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 195px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(178, 213, 229, 0.1);
+  z-index: 100;
+}
+
+.pdf-context-menu-header {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+}
+
+.pdf-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--foreground);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.pdf-context-menu-item:hover {
+  background: var(--secondary);
+  color: var(--accent);
+}
+
+.pdf-context-menu-item.danger {
+  color: #ef4444;
+}
+
+.pdf-context-menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.pdf-context-shortcut {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+
+.pdf-context-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.25rem 0.2rem;
+}
+
+/* ===== 11. Enterprise Empty State ===== */
+.pdf-empty-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 2.5rem 1.5rem;
+  gap: 2rem;
+  overflow-y: auto;
+}
+
+.pdf-empty-aura-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-empty-aura {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--primary) 0%, var(--accent) 50%, transparent 70%);
+  filter: blur(28px);
+  opacity: 0.45;
+  animation: aura-pulse 4s ease-in-out infinite alternate;
+}
+
+@keyframes aura-pulse {
+  0% { transform: scale(0.9); opacity: 0.35; }
+  100% { transform: scale(1.2); opacity: 0.65; }
+}
+
+.pdf-empty-icon-shield {
+  width: 96px;
+  height: 96px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, var(--card) 0%, var(--secondary) 100%);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  position: relative;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15);
+}
+
+.pdf-empty-header {
+  text-align: center;
+  max-width: 580px;
+}
+
+.pdf-empty-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  margin-bottom: 0.5rem;
+}
+
+.pdf-empty-subtitle {
+  font-size: 0.92rem;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+/* Vùng Dropzone phát quang */
+.pdf-enterprise-dropzone {
+  width: 100%;
+  max-width: 580px;
+  min-height: 170px;
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.pdf-enterprise-dropzone:hover,
+.pdf-enterprise-dropzone.dragging {
+  border-color: var(--accent);
+  background: rgba(178, 213, 229, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(178, 213, 229, 0.2);
+}
+
+.pdf-drop-icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  transition: transform 0.2s ease;
+}
+
+.pdf-enterprise-dropzone:hover .pdf-drop-icon-circle {
+  transform: scale(1.08) translateY(-2px);
+  background: var(--accent);
+  color: var(--primary-foreground);
+}
+
+.pdf-drop-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.pdf-drop-hint {
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+}
+
+/* 4 Thẻ Tính năng Khởi chạy Nhanh */
+.pdf-quick-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  width: 100%;
+  max-width: 860px;
+}
+
+@media (max-width: 768px) {
+  .pdf-quick-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.pdf-quick-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.pdf-quick-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.pdf-quick-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.pdf-quick-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.pdf-quick-card-desc {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+}
+
+/* ===== 12. Toast Notification & Progress ===== */
+.pdf-toast-container {
+  position: fixed;
+  top: 60px;
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pdf-toast-box {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.pdf-toast-box.success {
+  border-left: 4px solid #10b981;
+}
+
+.pdf-toast-box.error {
+  border-left: 4px solid #ef4444;
+}
+
+.pdf-toast-undo-btn {
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-toast-undo-btn:hover {
+  background: var(--accent);
+  color: var(--primary-foreground);
+}
+
+/* Pulse animation cho nút Lưu khi có thay đổi */
+@keyframes save-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(178, 213, 229, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(178, 213, 229, 0);
+  }
+}
+
+.pdf-btn-pulse {
+  animation: save-pulse 2s infinite;
+}
+
+/* ==========================================================================
+   VIETKEY PDF ENTERPRISE SUITE — SIGNATURE, ANNOTATION & WATERMARK STYLES
+   ========================================================================== */
+
+/* 1. Lớp phủ tương tác Chữ ký & Con dấu trên trang (Annotation Overlay) */
+.pdf-active-annotation-box {
+  position: absolute;
+  z-index: 50;
+  border: 2px dashed #00d2ff;
+  border-radius: 4px;
+  background: rgba(0, 210, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 12px rgba(0, 210, 255, 0.35);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+  transition: border-color 0.15s ease;
+}
+
+.pdf-active-annotation-box:hover {
+  border-color: #38bdf8;
+}
+
+.pdf-ann-toolbar {
+  position: absolute;
+  top: -34px;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.45rem;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.pdf-ann-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  padding-right: 0.35rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pdf-ann-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-ann-btn.apply {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.pdf-ann-btn.apply:hover {
+  background: #059669;
+}
+
+.pdf-ann-btn.delete {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.pdf-ann-btn.delete:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.pdf-ann-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.pdf-ann-text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* 4 Corner Resize Handles */
+.pdf-ann-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 2px solid #0284c7;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  z-index: 52;
+}
+
+.pdf-ann-handle.nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.pdf-ann-handle.ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.pdf-ann-handle.sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.pdf-ann-handle.se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+/* 2. Signature Modal */
+.pdf-signature-modal {
+  width: 680px;
+  max-width: 95vw;
+}
+
+.pdf-sig-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+  padding: 0.25rem 0.5rem 0 0.5rem;
+  gap: 0.35rem;
+}
+
+.pdf-sig-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-sig-tab-btn:hover {
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.pdf-sig-tab-btn.active {
+  color: var(--foreground);
+  background: var(--card);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.pdf-sig-draw-pane,
+.pdf-sig-upload-pane,
+.pdf-sig-type-pane,
+.pdf-sig-stamp-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pdf-sig-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--secondary);
+  border-radius: 6px;
+  gap: 1rem;
+}
+
+.pdf-sig-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.pdf-color-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.pdf-color-dot.active {
+  border-color: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-sig-width-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pdf-width-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.pdf-width-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.pdf-sig-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pdf-sig-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-sig-tool-btn:hover {
+  background: var(--secondary);
+}
+
+.pdf-sig-tool-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.pdf-sig-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.pdf-sig-canvas {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.pdf-sig-baseline {
+  position: absolute;
+  bottom: 45px;
+  left: 40px;
+  right: 40px;
+  border-bottom: 1px dashed #cbd5e1;
+  pointer-events: none;
+}
+
+.pdf-sig-hint-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+/* Upload dropzone */
+.pdf-sig-upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: var(--secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-sig-upload-dropzone:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.pdf-sig-upload-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pdf-sig-checker-preview {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8fafc;
+  background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pdf-sig-preview-img {
+  max-width: 85%;
+  max-height: 85%;
+  object-fit: contain;
+}
+
+.pdf-sig-upload-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pdf-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Font styles grid (Type Tab) */
+.pdf-font-styles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.pdf-font-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-font-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.pdf-font-card.active {
+  border-color: #00d2ff;
+  background: rgba(0, 210, 255, 0.05);
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.2);
+}
+
+.pdf-font-card-name {
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+.pdf-font-card-preview {
+  font-size: 1.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.35rem 0;
+}
+
+.pdf-font-card-check,
+.pdf-stamp-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #00d2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stamps Grid (Office Tab) */
+.pdf-stamps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.pdf-stamp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-stamp-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.pdf-stamp-card.active {
+  border-color: #00d2ff;
+  background: rgba(0, 210, 255, 0.05);
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.2);
+}
+
+.pdf-stamp-preview-box {
+  width: 100%;
+  height: 70px;
+  border: 2px dashed currentColor;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.pdf-stamp-prev-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.pdf-stamp-prev-div {
+  width: 70%;
+  height: 1.5px;
+  margin: 2px 0;
+}
+
+.pdf-stamp-prev-sub {
+  font-size: 0.55rem;
+  font-weight: 700;
+}
+
+.pdf-stamp-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* 3. Watermark Modal */
+.pdf-watermark-modal {
+  width: 650px;
+  max-width: 95vw;
+}
+
+.pdf-wm-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1.25rem;
+}
+
+.pdf-wm-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.pdf-wm-preset-tag {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-wm-preset-tag:hover {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--accent);
+}
+
+.pdf-wm-mini-page {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-wm-dummy-lines {
+  position: absolute;
+  inset: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdf-wm-line {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.pdf-wm-simulated-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  letter-spacing: 0.08em;
+  transform-origin: center;
+}
+

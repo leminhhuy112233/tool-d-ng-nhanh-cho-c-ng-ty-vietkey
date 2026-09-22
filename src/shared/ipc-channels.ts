@@ -56,7 +56,31 @@ export const IPC_CHANNELS = {
   TEMPLATE_CUSTOM_SAVE: 'template:custom-save',
   TEMPLATE_CUSTOM_DELETE: 'template:custom-delete',
   TEMPLATE_CUSTOM_GET: 'template:custom-get',
-  DOCUMENT_EXPORT_CUSTOM: 'document:export-custom'
+  DOCUMENT_EXPORT_CUSTOM: 'document:export-custom',
+
+  // PDF Tools
+  PDF_OPEN_FILE: 'pdf:open-file',
+  PDF_SAVE_FILE: 'pdf:save-file',
+  PDF_READ_FILE: 'pdf:read-file',
+  PDF_DELETE_PAGES: 'pdf:delete-pages',
+  PDF_ROTATE_PAGES: 'pdf:rotate-pages',
+  PDF_SPLIT: 'pdf:split',
+  PDF_MERGE: 'pdf:merge',
+  PDF_REORDER_PAGES: 'pdf:reorder-pages',
+  PDF_DUPLICATE_PAGES: 'pdf:duplicate-pages',
+  PDF_EXTRACT_PAGES: 'pdf:extract-pages',
+  PDF_ADD_WATERMARK: 'pdf:add-watermark',
+  PDF_FLATTEN_ANNOTATIONS: 'pdf:flatten-annotations',
+  PDF_ENCRYPT: 'pdf:encrypt',
+  PDF_TO_IMAGES: 'pdf:to-images',
+  PDF_IMAGES_TO_PDF: 'pdf:images-to-pdf',
+
+  // Local Storage Hub (MỚI)
+  STORAGE_GET_INFO: 'storage:get-info',
+  STORAGE_SET_PATH: 'storage:set-path',
+  STORAGE_OPEN_EXPLORER: 'storage:open-explorer',
+  STORAGE_CREATE_BACKUP: 'storage:create-backup',
+  STORAGE_CLEANUP_TEMP: 'storage:cleanup-temp'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

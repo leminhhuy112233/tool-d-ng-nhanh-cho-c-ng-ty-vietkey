@@ -41,9 +41,31 @@ let data: StoreData = { ...DEFAULT_DATA }
 
 function getStorePath(): string {
   if (!storePath) {
-    storePath = join(app.getPath('userData'), 'vietkey-docgen-config.json')
+    const pcDir = join(app.getPath('home'), 'VietKey_Data', 'Database')
+    if (!existsSync(pcDir)) {
+      mkdirSync(pcDir, { recursive: true })
+    }
+    const pcDbPath = join(pcDir, 'vietkey_database.json')
+    const legacyPath = join(app.getPath('userData'), 'vietkey-docgen-config.json')
+
+    // Tự động di chuyển dữ liệu cũ nếu file mới chưa có
+    if (!existsSync(pcDbPath) && existsSync(legacyPath)) {
+      try {
+        const raw = readFileSync(legacyPath, 'utf-8')
+        writeFileSync(pcDbPath, raw, 'utf-8')
+        console.log('[Database] Đã chuyển đổi dữ liệu thành công sang PC Hub:', pcDbPath)
+      } catch (err) {
+        console.error('[Database] Lỗi di chuyển dữ liệu cũ:', err)
+      }
+    }
+    storePath = pcDbPath
   }
   return storePath
+}
+
+export function setDatabaseStorePath(newPath: string): void {
+  storePath = newPath
+  data = loadFromDisk()
 }
 
 function loadFromDisk(): StoreData {

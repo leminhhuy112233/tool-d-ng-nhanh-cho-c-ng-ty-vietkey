@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
-import type { ElectronAPI, ContractData, QuotationData, AdvanceRequestData, CustomTemplateDef, ExportFileType } from '../shared/types'
+import type { ElectronAPI, ContractData, QuotationData, AdvanceRequestData, CustomTemplateDef, ExportFileType, PdfAnnotationData, PdfSplitRange, PdfWatermarkOptions } from '../shared/types'
 
 const api: ElectronAPI = {
   // Settings
@@ -64,7 +64,7 @@ const api: ElectronAPI = {
   openTemplatesFolder: () => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_LIST),
   openTemplateFile: (fileName: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_GET, fileName),
 
-  // Custom Dynamic Template Management (MỚI)
+  // Custom Dynamic Template Management
   analyzeTemplate: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_ANALYZE, filePath),
   getCustomTemplates: () => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_LIST),
   saveCustomTemplate: (
@@ -81,7 +81,40 @@ const api: ElectronAPI = {
   ) => ipcRenderer.invoke(IPC_CHANNELS.DOCUMENT_EXPORT_CUSTOM, templateId, data, targetPath, exportType),
 
   // App info
-  getAppVersion: () => '1.0.0'
+  getAppVersion: () => '1.0.0',
+
+  // PDF Tools
+  pdfOpenFile: () => ipcRenderer.invoke(IPC_CHANNELS.PDF_OPEN_FILE),
+  pdfReadFile: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.PDF_READ_FILE, filePath),
+  pdfSaveFile: (pdfBase64: string, suggestedName?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_SAVE_FILE, pdfBase64, suggestedName),
+  pdfDeletePages: (pdfBase64: string, pageIndices: number[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_DELETE_PAGES, pdfBase64, pageIndices),
+  pdfRotatePages: (pdfBase64: string, pageIndices: number[], angleDegrees: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_ROTATE_PAGES, pdfBase64, pageIndices, angleDegrees),
+  pdfReorderPages: (pdfBase64: string, newOrder: number[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_REORDER_PAGES, pdfBase64, newOrder),
+  pdfDuplicatePages: (pdfBase64: string, pageIndices: number[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_DUPLICATE_PAGES, pdfBase64, pageIndices),
+  pdfExtractPages: (pdfBase64: string, pageIndices: number[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_EXTRACT_PAGES, pdfBase64, pageIndices),
+  pdfSplit: (pdfBase64: string, ranges: PdfSplitRange[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_SPLIT, pdfBase64, ranges),
+  pdfMerge: () => ipcRenderer.invoke(IPC_CHANNELS.PDF_MERGE),
+  pdfFlattenAnnotations: (pdfBase64: string, annotations: PdfAnnotationData[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_FLATTEN_ANNOTATIONS, pdfBase64, annotations),
+  pdfAddWatermark: (pdfBase64: string, options: PdfWatermarkOptions) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_ADD_WATERMARK, pdfBase64, options),
+  pdfImagesToPdf: (images: { base64: string; type?: 'png' | 'jpg' }[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_IMAGES_TO_PDF, images),
+
+  // Local Storage Hub (MỚI)
+  storageGetInfo: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_GET_INFO),
+  storageSetPath: (newPath: string) => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_SET_PATH, newPath),
+  storageOpenExplorer: (subfolder?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.STORAGE_OPEN_EXPLORER, subfolder),
+  storageCreateBackup: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_CREATE_BACKUP),
+  storageCleanupTemp: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_CLEANUP_TEMP)
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -9,7 +9,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Zap,
-  Clock
+  Clock,
+  FileEdit
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -53,6 +54,12 @@ const navItems: NavItem[] = [
     label: 'Quản lý Template',
     icon: <FolderOpen size={20} />,
     section: 'HỆ THỐNG'
+  },
+  {
+    path: '/pdf-tools',
+    label: 'PDF Tools',
+    icon: <FileEdit size={20} />,
+    section: 'CÔNG CỤ'
   },
   {
     path: '/settings',
