@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build and Packaging outputs
+out/
+dist/
+build/
+*.exe
+*.msi
+*.zip
+
+# Environment & Secrets (TUYỆT ĐỐI KHÔNG PUSH LÊN GIT)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+credentials.json
+token.json
+api_keys.json
+
+# Local Databases and dynamic storage
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+database.sqlite
+
+# Cache & Temporary Vite/Electron files
+*.tmp
+*.temp
+.cache/
+.vite/
+electron.vite.config.*.mjs
+
+# Office temporary lock files (Word / Excel lock files)
+~$*
+~*.doc
+~*.docx
+~*.xls
+~*.xlsx
+
+# Generated test docx outputs
+templates/test_*.docx
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini

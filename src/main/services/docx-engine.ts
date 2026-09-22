@@ -1,0 +1,200 @@
+import PizZip from 'pizzip'
+import Docxtemplater from 'docxtemplater'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { join } from 'path'
+import { app } from 'electron'
+import type { ContractData, QuotationData, AdvanceRequestData } from '../../shared/types'
+
+// Helper: Tách danh xưng (Ông/Bà) và chuẩn hóa tên viết hoa toàn bộ
+export function formatRepresentativeName(
+  inputName: string,
+  defaultPrefix: 'Ông' | 'Bà' = 'Ông'
+): { prefix: 'Ông' | 'Bà'; name: string } {
+  let name = (inputName || '').trim()
+  let prefix: 'Ông' | 'Bà' = defaultPrefix
+
+  if (/^bà\s+/i.test(name)) {
+    prefix = 'Bà'
+    name = name.replace(/^bà\s+/i, '').trim()
+  } else if (/^ông\s+/i.test(name)) {
+    prefix = 'Ông'
+    name = name.replace(/^ông\s+/i, '').trim()
+  }
+
+  return {
+    prefix,
+    name: name.toUpperCase()
+  }
+}
+
+// ===== 1. Xuất Hợp đồng nguyên tắc =====
+export function generateContractDocx(
+  data: ContractData,
+  targetPath: string
+): { success: boolean; error?: string } {
+  try {
+    let templatePath = join(app.getAppPath(), 'templates', 'HopDongNguyenTac.docx')
+    if (!existsSync(templatePath)) {
+      templatePath = join(process.cwd(), 'templates', 'HopDongNguyenTac.docx')
+    }
+
+    if (!existsSync(templatePath)) {
+      return { success: false, error: `Không tìm thấy template tại: ${templatePath}` }
+    }
+
+    const benaFormatted = formatRepresentativeName(
+      data.bena_dai_dien,
+      data.bena_xung_danh || 'Ông'
+    )
+    const benbFormatted = formatRepresentativeName(
+      data.benb_dai_dien,
+      data.benb_xung_danh || 'Bà'
+    )
+
+    const content = readFileSync(templatePath, 'binary')
+    const zip = new PizZip(content)
+
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true
+    })
+
+    doc.render({
+      so_hd: data.so_hd || '',
+      ngay: data.ngay || '',
+      thang: data.thang || '',
+      nam: data.nam || '',
+      noi_dung_mua_ban: data.noi_dung_mua_ban || 'mua bán vật tư, vật liệu xây dựng',
+
+      bena_xung_danh: benaFormatted.prefix,
+      bena_ten_cong_ty: (data.bena_ten_cong_ty || '').toUpperCase(),
+      bena_dai_dien: benaFormatted.name,
+      bena_chuc_vu: data.bena_chuc_vu || 'Giám đốc',
+      bena_dia_chi: data.bena_dia_chi || '',
+      bena_tai_khoan: data.bena_tai_khoan || '',
+      bena_mst: data.bena_mst || '',
+
+      benb_xung_danh: benbFormatted.prefix,
+      benb_ten_cong_ty: (data.benb_ten_cong_ty || '').toUpperCase(),
+      benb_dai_dien: benbFormatted.name,
+      benb_chuc_vu: data.benb_chuc_vu || 'Giám đốc',
+      benb_dia_chi: data.benb_dia_chi || '',
+      benb_tai_khoan: data.benb_tai_khoan || '',
+      benb_mst: data.benb_mst || ''
+    })
+
+    const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
+    writeFileSync(targetPath, buf)
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('Lỗi xuất Word Hợp đồng:', err)
+    return {
+      success: false,
+      error: err.message || 'Lỗi không xác định khi xuất file Word.'
+    }
+  }
+}
+
+// ===== 2. Xuất Báo giá =====
+export function generateQuotationDocx(
+  data: QuotationData,
+  targetPath: string
+): { success: boolean; error?: string } {
+  try {
+    let templatePath = join(app.getAppPath(), 'templates', 'BaoGia.docx')
+    if (!existsSync(templatePath)) {
+      templatePath = join(process.cwd(), 'templates', 'BaoGia.docx')
+    }
+
+    if (!existsSync(templatePath)) {
+      return { success: false, error: `Không tìm thấy template tại: ${templatePath}` }
+    }
+
+    const content = readFileSync(templatePath, 'binary')
+    const zip = new PizZip(content)
+
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true
+    })
+
+    // Prepare table items with auto formatted STT (01, 02, 03...)
+    const formattedItems = (data.items || []).map((item, idx) => ({
+      stt: item.stt || String(idx + 1).padStart(2, '0'),
+      ten_hang: item.ten_hang || '',
+      don_vi: item.don_vi || 'M³',
+      don_gia: (item.don_gia_sau_tang && item.don_gia_sau_tang.trim() !== '') ? item.don_gia_sau_tang : (item.don_gia || '0')
+    }))
+
+    doc.render({
+      ngay: data.ngay || '',
+      thang: data.thang || '',
+      nam: data.nam || '',
+      ten_khach_hang: data.ten_khach_hang || 'Quý khách hàng!',
+      items: formattedItems
+    })
+
+    const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
+    writeFileSync(targetPath, buf)
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('Lỗi xuất Word Báo giá:', err)
+    return {
+      success: false,
+      error: err.message || 'Lỗi không xác định khi xuất file Báo giá Word.'
+    }
+  }
+}
+
+// ===== 3. Xuất Đề nghị Tạm ứng =====
+export function generateAdvanceRequestDocx(
+  data: AdvanceRequestData,
+  targetPath: string
+): { success: boolean; error?: string } {
+  try {
+    let templatePath = join(app.getAppPath(), 'templates', 'DeNghiTamUng.docx')
+    if (!existsSync(templatePath)) {
+      templatePath = join(process.cwd(), 'templates', 'DeNghiTamUng.docx')
+    }
+
+    if (!existsSync(templatePath)) {
+      return { success: false, error: `Không tìm thấy template tại: ${templatePath}` }
+    }
+
+    const content = readFileSync(templatePath, 'binary')
+    const zip = new PizZip(content)
+
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true
+    })
+
+    // Tên công ty khách hàng luôn IN HOA toàn bộ
+    const clientCompanyUpper = (data.ten_cong_ty_khach || '').toUpperCase()
+
+    doc.render({
+      ngay: data.ngay || '',
+      thang: data.thang || '',
+      nam: data.nam || '',
+      ten_cong_ty_khach: clientCompanyUpper,
+      noi_dung_cung_cap: data.noi_dung_cung_cap || 'VLXD các loại',
+      dot_tam_ung: data.dot_tam_ung || '1',
+      gia_tri_don_hang: data.gia_tri_don_hang || '0',
+      gia_tri_tam_ung: data.gia_tri_tam_ung || '0',
+      so_tien_bang_chu: data.so_tien_bang_chu || 'Không'
+    })
+
+    const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
+    writeFileSync(targetPath, buf)
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('Lỗi xuất Word Đề nghị Tạm ứng:', err)
+    return {
+      success: false,
+      error: err.message || 'Lỗi không xác định khi xuất file Đề nghị Tạm ứng Word.'
+    }
+  }
+}
