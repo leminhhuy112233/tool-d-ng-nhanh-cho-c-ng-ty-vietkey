@@ -24,7 +24,7 @@
   --sidebar-foreground: #020202;
   --sidebar-border: #c8e0ec;
   --sidebar-hover: #d5e6f0;
-  --sidebar-active: #b2d5e5;
+  --sidebar-active: #c5dfec;
   --titlebar-bg: #dcecf5;
   --floating-bar-bg: rgba(255, 255, 255, 0.94);
   --floating-bar-border: rgba(178, 213, 229, 0.6);
@@ -321,8 +321,16 @@ button:active, a:active {
 .nav-item.active {
   opacity: 1;
   background: var(--sidebar-active);
-  color: var(--primary);
-  font-weight: 500;
+  color: var(--sidebar-foreground);
+  font-weight: 600;
+}
+
+.nav-item.active .nav-item-icon {
+  color: var(--sidebar-foreground);
+}
+
+.nav-item.active .nav-item-label {
+  color: var(--sidebar-foreground);
 }
 
 .nav-item.active::before {
@@ -333,7 +341,7 @@ button:active, a:active {
   transform: translateY(-50%);
   width: 3px;
   height: 20px;
-  background: var(--primary);
+  background: var(--accent);
   border-radius: 0 3px 3px 0;
 }
 

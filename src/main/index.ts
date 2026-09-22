@@ -1,7 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { initStore, getPartners, savePartner, getHistory, addHistoryRecord } from './services/database'
+import { initStore, getPartners, savePartner, getHistory, addHistoryRecord, deleteHistoryRecord, clearHistory } from './services/database'
 import { registerSettingsHandlers } from './ipc/settings.ipc'
 import { registerDocumentHandlers } from './ipc/document.ipc'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
@@ -97,6 +98,8 @@ function registerWindowHandlers(): void {
   // History Handlers
   ipcMain.handle(IPC_CHANNELS.HISTORY_GET_ALL, () => getHistory())
   ipcMain.handle(IPC_CHANNELS.HISTORY_ADD, (_event, record) => addHistoryRecord(record))
+  ipcMain.handle(IPC_CHANNELS.HISTORY_DELETE, (_event, id: string) => deleteHistoryRecord(id))
+  ipcMain.handle(IPC_CHANNELS.HISTORY_CLEAR, () => clearHistory())
 
   // File dialogs
   ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_FILE, async (_event, filters) => {
@@ -112,6 +115,28 @@ function registerWindowHandlers(): void {
       properties: ['openDirectory']
     })
     return result.canceled ? null : result.filePaths[0]
+  })
+
+  // Template Handlers
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_LIST, async () => {
+    let templateDir = join(app.getAppPath(), 'templates')
+    if (!existsSync(templateDir)) {
+      templateDir = join(process.cwd(), 'templates')
+    }
+    if (existsSync(templateDir)) {
+      await shell.openPath(templateDir)
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_GET, async (_event, fileName: string) => {
+    let templateDir = join(app.getAppPath(), 'templates')
+    if (!existsSync(templateDir)) {
+      templateDir = join(process.cwd(), 'templates')
+    }
+    const filePath = join(templateDir, fileName)
+    if (existsSync(filePath)) {
+      await shell.openPath(filePath)
+    }
   })
 }
 

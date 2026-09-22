@@ -102,14 +102,25 @@ export function generateQuotationDocx(
   targetPath: string
 ): { success: boolean; error?: string } {
   try {
-    let templatePath = join(app.getAppPath(), 'templates', 'BaoGia.docx')
-    if (!existsSync(templatePath)) {
-      templatePath = join(process.cwd(), 'templates', 'BaoGia.docx')
+    const isWithNotes = Boolean(data.co_ghi_chu)
+    const templateFileName = isWithNotes ? 'BaoGia_CoGhiChu.docx' : 'BaoGia.docx'
+    console.log(`[generateQuotationDocx] Bắt đầu xuất báo giá: co_ghi_chu = ${isWithNotes} -> Template: ${templateFileName}`)
+
+    const candidatePaths = [
+      join(app.getAppPath(), 'templates', templateFileName),
+      join(process.cwd(), 'templates', templateFileName),
+      join(__dirname, '..', '..', 'templates', templateFileName),
+      join(__dirname, '..', 'templates', templateFileName),
+      join(process.resourcesPath || '', 'templates', templateFileName)
+    ]
+
+    const templatePath = candidatePaths.find((p) => p && existsSync(p))
+    if (!templatePath) {
+      console.error(`[generateQuotationDocx] Không tìm thấy file template ${templateFileName} trong các đường dẫn:`, candidatePaths)
+      return { success: false, error: `Không tìm thấy template tại: ${candidatePaths.filter(Boolean).join(' hoặc ')}` }
     }
 
-    if (!existsSync(templatePath)) {
-      return { success: false, error: `Không tìm thấy template tại: ${templatePath}` }
-    }
+    console.log(`[generateQuotationDocx] Đã tìm thấy template tại: ${templatePath}`)
 
     const content = readFileSync(templatePath, 'binary')
     const zip = new PizZip(content)
@@ -123,6 +134,7 @@ export function generateQuotationDocx(
     const formattedItems = (data.items || []).map((item, idx) => ({
       stt: item.stt || String(idx + 1).padStart(2, '0'),
       ten_hang: item.ten_hang || '',
+      ghi_chu: item.ghi_chu || '',
       don_vi: item.don_vi || 'M³',
       don_gia: (item.don_gia_sau_tang && item.don_gia_sau_tang.trim() !== '') ? item.don_gia_sau_tang : (item.don_gia || '0')
     }))

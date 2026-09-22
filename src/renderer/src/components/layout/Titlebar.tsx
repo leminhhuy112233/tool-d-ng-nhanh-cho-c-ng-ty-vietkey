@@ -34,6 +34,41 @@ export function Titlebar() {
         <span className="titlebar-versionBadge">{isMini ? 'MINI MODE' : 'PRO'}</span>
       </div>
 
+      {/* Center Quick Command Palette Trigger */}
+      <button
+        onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '4px 14px',
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
+          borderRadius: '6px',
+          color: 'var(--muted-foreground)',
+          fontSize: '11.5px',
+          fontWeight: 500,
+          cursor: 'pointer',
+          WebkitAppRegion: 'no-drag',
+          transition: 'all 0.15s ease'
+        }}
+        title="Mở thanh tìm kiếm & lệnh nhanh (Ctrl + K)"
+      >
+        <span>Tìm lệnh, tài liệu, đối tác...</span>
+        <kbd
+          style={{
+            fontSize: '10px',
+            background: 'var(--muted)',
+            padding: '1px 5px',
+            borderRadius: '4px',
+            border: '1px solid var(--border)',
+            fontWeight: 600
+          }}
+        >
+          Ctrl + K
+        </kbd>
+      </button>
+
       {/* Right Control Action Buttons */}
       <div className="titlebar-controls">
         {/* Toggle Mini Mode Button */}

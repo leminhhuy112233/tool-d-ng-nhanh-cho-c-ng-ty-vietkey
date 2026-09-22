@@ -17,10 +17,19 @@ import {
   ExternalLink,
   Folder,
   Percent,
-  RotateCcw
+  RotateCcw,
+  Copy,
+  ChevronUp,
+  ChevronDown,
+  Calculator,
+  Receipt,
+  CheckSquare,
+  Square
 } from 'lucide-react'
 import type { QuotationData, QuotationItem, ExportFileType, PartnerProfile } from '../../../shared/types'
+import { numberToVietnameseWords } from '../../../shared/number-to-words'
 import { playSuccessChime } from '../lib/sound'
+import { useFormDraftsStore } from '../stores/formDrafts.store'
 
 // Common Quotation Units
 const COMMON_UNITS = ['M³', 'Tấn', 'Bao', 'Cái', 'Bộ', 'Kg', 'Chuyến', 'Khác...']
@@ -47,6 +56,8 @@ export function QuotationForm() {
 
   // Tăng % đồng loạt cho toàn bảng
   const [batchPercent, setBatchPercent] = useState('')
+  // Thuế VAT (0%, 8%, 10%)
+  const [vatRate, setVatRate] = useState<number>(10)
 
   // Partner Memory Suggestions
   const [savedPartners, setSavedPartners] = useState<PartnerProfile[]>([])
@@ -66,21 +77,18 @@ export function QuotationForm() {
   const currentMonth = String(today.getMonth() + 1).padStart(2, '0')
   const currentYear = String(today.getFullYear())
 
-  // Initial clean empty quotation item
-  const initialItems: QuotationItem[] = [
-    { id: '1', stt: '01', ten_hang: '', don_vi: 'M³', don_gia: '', phan_tram_tang: '', don_gia_sau_tang: '' }
-  ]
+  // Form Draft Persistence Store (giữ nguyên dữ liệu khi chuyển tab)
+  const formData = useFormDraftsStore((s) => s.quotationDraft)
+  const setFormData = useFormDraftsStore((s) => s.setQuotationDraft)
+  const resetQuotationDraft = useFormDraftsStore((s) => s.resetQuotationDraft)
 
-  const [formData, setFormData] = useState<QuotationData>({
-    ngay: currentDay,
-    thang: currentMonth,
-    nam: currentYear,
-    ten_khach_hang: '',
-    file_name: 'BaoGia.docx',
-    export_dir: '',
-    export_type: 'word',
-    items: initialItems
-  })
+  const handleClearAllData = () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ thông tin đang điền trong bảng báo giá để làm mới?')) {
+      resetQuotationDraft()
+      setBatchPercent('')
+      showToast('success', 'Đã xóa toàn bộ thông tin và làm mới bảng báo giá!')
+    }
+  }
 
   // Load saved partners & export directory
   useEffect(() => {
@@ -168,6 +176,7 @@ export function QuotationForm() {
         id: String(Date.now()),
         stt: nextStt,
         ten_hang: '',
+        ghi_chu: '',
         don_vi: 'M³',
         don_gia: '',
         phan_tram_tang: batchPercent || '',
@@ -183,6 +192,42 @@ export function QuotationForm() {
       const renumbered = filtered.map((item, idx) => ({
         ...item,
         stt: String(idx + 1).padStart(2, '0')
+      }))
+      return { ...prev, items: renumbered }
+    })
+  }
+
+  const handleDuplicateItem = (id: string) => {
+    setFormData((prev) => {
+      const idx = prev.items.findIndex((item) => item.id === id)
+      if (idx === -1) return prev
+      const itemToClone = prev.items[idx]
+      const cloned: QuotationItem = {
+        ...itemToClone,
+        id: String(Date.now() + Math.floor(Math.random() * 1000))
+      }
+      const newItems = [...prev.items]
+      newItems.splice(idx + 1, 0, cloned)
+      const renumbered = newItems.map((item, i) => ({
+        ...item,
+        stt: String(i + 1).padStart(2, '0')
+      }))
+      return { ...prev, items: renumbered }
+    })
+    showToast('success', 'Đã nhân bản dòng mặt hàng!')
+  }
+
+  const handleMoveItem = (idx: number, direction: 'up' | 'down') => {
+    setFormData((prev) => {
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+      if (targetIdx < 0 || targetIdx >= prev.items.length) return prev
+      const newItems = [...prev.items]
+      const temp = newItems[idx]
+      newItems[idx] = newItems[targetIdx]
+      newItems[targetIdx] = temp
+      const renumbered = newItems.map((item, i) => ({
+        ...item,
+        stt: String(i + 1).padStart(2, '0')
       }))
       return { ...prev, items: renumbered }
     })
@@ -300,6 +345,7 @@ export function QuotationForm() {
               ...it,
               id: String(Date.now() + idx),
               stt: String(idx + 1).padStart(2, '0'),
+              ghi_chu: it.ghi_chu || '',
               phan_tram_tang: pct,
               don_gia_sau_tang: finalPrice || it.don_gia || ''
             }
@@ -375,25 +421,30 @@ export function QuotationForm() {
         })
       }
 
-      // Chuẩn bị dữ liệu xuất: gửi đơn giá cuối cùng sau tăng % vào template Word/PDF
+      // Chuẩn bị dữ liệu xuất: gửi đơn giá cuối cùng sau tăng % và cột ghi chú (nếu bật) vào template Word/PDF
+      const isWithNotes = Boolean(formData.co_ghi_chu)
       const preparedData: QuotationData = {
         ...formData,
+        co_ghi_chu: isWithNotes,
         items: formData.items.map((it) => ({
           ...it,
+          ghi_chu: it.ghi_chu || '',
           don_gia: (it.don_gia_sau_tang && it.don_gia_sau_tang.trim() !== '') ? it.don_gia_sau_tang : (it.don_gia || '0')
         }))
       }
 
+      console.log(`[QuotationForm] Gửi yêu cầu xuất báo giá: co_ghi_chu = ${isWithNotes}`, preparedData)
       const res = await window.api.exportQuotation(preparedData, targetFilePath)
 
       if (res.success) {
         let msg = ''
+        const templateBadge = isWithNotes ? ' (Mẫu 5 cột - Có Ghi chú)' : ' (Mẫu 4 cột tiêu chuẩn)'
         if (formData.export_type === 'word') {
-          msg = `Đã xuất file Báo Giá Word thành công!`
+          msg = `Đã xuất file Báo Giá Word thành công!${templateBadge}`
         } else if (formData.export_type === 'pdf') {
-          msg = `Đã xuất file Báo Giá PDF thành công!`
+          msg = `Đã xuất file Báo Giá PDF thành công!${templateBadge}`
         } else {
-          msg = `Đã xuất cả 2 file (Word & PDF) thành công!`
+          msg = `Đã xuất cả 2 file (Word & PDF) thành công!${templateBadge}`
         }
         showToast('success', msg, res.filePath || targetFilePath, res.pdfPath)
       } else {
@@ -410,6 +461,17 @@ export function QuotationForm() {
   const filteredPartners = savedPartners.filter((p) =>
     p.ten_cong_ty.toLowerCase().includes(formData.ten_khach_hang.toLowerCase())
   )
+
+  // Quotation Financial Totals
+  const subtotal = formData.items.reduce((sum, it) => {
+    const priceStr = (it.don_gia_sau_tang && it.don_gia_sau_tang.trim() !== '') ? it.don_gia_sau_tang : it.don_gia
+    const cleanNum = Number((priceStr || '').replace(/[^0-9]/g, ''))
+    return sum + (isNaN(cleanNum) ? 0 : cleanNum)
+  }, 0)
+
+  const vatAmount = Math.round((subtotal * vatRate) / 100)
+  const grandTotal = subtotal + vatAmount
+  const grandTotalInWords = grandTotal > 0 ? numberToVietnameseWords(grandTotal) + ' đồng' : 'Không đồng'
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', paddingBottom: '80px' }}>
@@ -431,28 +493,61 @@ export function QuotationForm() {
         title="Bảng Báo Giá"
         description="Quản lý danh sách hàng hóa, đơn giá và xuất file Báo giá (Word / PDF / Cả 2) chuyên nghiệp"
       >
-        <button
-          onClick={handleExportDocx}
-          disabled={isExporting}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 22px',
-            background: 'var(--primary)',
-            color: 'var(--primary-foreground)',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(178, 213, 229, 0.4)',
-            fontFamily: "'Inter', sans-serif"
-          }}
-        >
-          <Download size={18} color="var(--primary-foreground)" />
-          {isExporting ? 'Đang xuất file...' : `Xuất Báo Giá (${formData.export_type.toUpperCase()})`}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={handleClearAllData}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 16px',
+              background: 'var(--card)',
+              color: 'var(--muted-foreground)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Xóa toàn bộ thông tin đã điền và làm mới bảng báo giá"
+            onMouseOver={(e) => {
+              e.currentTarget.style.color = 'var(--destructive)'
+              e.currentTarget.style.borderColor = 'var(--destructive)'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.color = 'var(--muted-foreground)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+            }}
+          >
+            <RotateCcw size={15} />
+            Xóa toàn bộ thông tin
+          </button>
+
+          <button
+            onClick={handleExportDocx}
+            disabled={isExporting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 22px',
+              background: 'var(--primary)',
+              color: 'var(--primary-foreground)',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(178, 213, 229, 0.4)',
+              fontFamily: "'Inter', sans-serif"
+            }}
+          >
+            <Download size={18} color="var(--primary-foreground)" />
+            {isExporting ? 'Đang xuất file...' : `Xuất Báo Giá (${formData.export_type.toUpperCase()})`}
+          </button>
+        </div>
       </PageHeader>
 
       {/* Control Bar */}
@@ -763,25 +858,61 @@ export function QuotationForm() {
               <p style={{ margin: 0, fontSize: '12px' }}>Chỉnh sửa tên hàng hóa, chọn đơn vị, nhập đơn giá và tỷ lệ tăng %</p>
             </div>
 
-            <button
-              onClick={handleAddItem}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                background: 'var(--primary)',
-                color: 'var(--primary-foreground)',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              <Plus size={16} color="var(--primary-foreground)" />
-              Thêm hàng hóa
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* Lựa chọn thêm cột Ghi chú */}
+              <button
+                type="button"
+                onClick={() => {
+                  const nextVal = !formData.co_ghi_chu
+                  setFormData((prev) => ({ ...prev, co_ghi_chu: nextVal }))
+                  showToast('success', nextVal ? 'Đã bật cột Ghi Chú (xuất bảng 5 cột)!' : 'Đã tắt cột Ghi Chú (xuất bảng 4 cột tiêu chuẩn)!')
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  padding: '7px 14px',
+                  background: formData.co_ghi_chu ? 'var(--primary)' : 'var(--muted)',
+                  border: formData.co_ghi_chu ? '1px solid var(--primary)' : '1px solid var(--border)',
+                  borderRadius: '8px',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  color: formData.co_ghi_chu ? 'var(--primary-foreground)' : 'var(--foreground)',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'all 0.2s ease',
+                  boxShadow: formData.co_ghi_chu ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                }}
+                title={formData.co_ghi_chu ? 'Đang bật: Xuất bảng 5 cột (có Ghi Chú). Nhấp để tắt.' : 'Đang tắt: Xuất bảng 4 cột tiêu chuẩn. Nhấp để bật.'}
+              >
+                {formData.co_ghi_chu ? (
+                  <CheckSquare size={15} style={{ strokeWidth: 2.5 }} />
+                ) : (
+                  <Square size={15} style={{ opacity: 0.7 }} />
+                )}
+                <span>{formData.co_ghi_chu ? 'Cột Ghi Chú (Đang bật)' : '+ Cột Ghi Chú'}</span>
+              </button>
+
+              <button
+                onClick={handleAddItem}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  background: 'var(--primary)',
+                  color: 'var(--primary-foreground)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <Plus size={16} color="var(--primary-foreground)" />
+                Thêm hàng hóa
+              </button>
+            </div>
           </div>
 
           {/* Thanh công cụ Tăng % đồng loạt cho toàn bảng */}
@@ -916,10 +1047,20 @@ export function QuotationForm() {
           </div>
 
           {/* Dynamic Table */}
-          <div style={{ overflowX: 'auto' }}>
+          {/* Dynamic Table with Responsive Layout & MinWidth */}
+          <div
+            style={{
+              overflowX: 'auto',
+              borderRadius: '10px',
+              border: '1px solid var(--border)',
+              background: 'var(--card)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}
+          >
             <table
               style={{
                 width: '100%',
+                minWidth: formData.co_ghi_chu ? '1150px' : '960px',
                 borderCollapse: 'collapse',
                 fontSize: '13px'
               }}
@@ -931,48 +1072,92 @@ export function QuotationForm() {
                     borderBottom: '1px solid var(--border)'
                   }}
                 >
-                  <th style={{ padding: '10px', textTransform: 'uppercase', fontSize: '11px', width: '50px', textAlign: 'center' }}>STT</th>
-                  <th style={{ padding: '10px', textTransform: 'uppercase', fontSize: '11px', textAlign: 'left' }}>Tên Hàng Hóa</th>
-                  <th style={{ padding: '10px', textTransform: 'uppercase', fontSize: '11px', width: '130px', textAlign: 'center' }}>Đơn Vị (Chọn)</th>
-                  <th style={{ padding: '10px', textTransform: 'uppercase', fontSize: '11px', width: '145px', textAlign: 'right' }}>Đơn Giá (VNĐ)</th>
-                  <th style={{ padding: '10px', textTransform: 'uppercase', fontSize: '11px', width: '85px', textAlign: 'center' }}>+ % Tăng</th>
-                  <th style={{ padding: '10px', textTransform: 'uppercase', fontSize: '11px', width: '165px', textAlign: 'right', color: 'var(--foreground)' }}>Giá Sau Tăng (VNĐ)</th>
-                  <th style={{ padding: '10px', textTransform: 'uppercase', fontSize: '11px', width: '45px', textAlign: 'center' }}></th>
+                  <th style={{ padding: '10px 8px', textTransform: 'uppercase', fontSize: '11px', width: '46px', textAlign: 'center' }}>STT</th>
+                  <th style={{ padding: '10px 10px', textTransform: 'uppercase', fontSize: '11px', textAlign: 'left', minWidth: '260px' }}>
+                    Tên Hàng Hóa
+                  </th>
+                  {formData.co_ghi_chu && (
+                    <th
+                      style={{
+                        padding: '10px 10px',
+                        textTransform: 'uppercase',
+                        fontSize: '11px',
+                        width: '210px',
+                        minWidth: '180px',
+                        textAlign: 'left',
+                        color: 'var(--primary)',
+                        background: 'rgba(59, 130, 246, 0.05)',
+                        borderLeft: '1px solid var(--border)'
+                      }}
+                    >
+                      Ghi Chú (Quy Cách)
+                    </th>
+                  )}
+                  <th style={{ padding: '10px 6px', textTransform: 'uppercase', fontSize: '11px', width: '105px', textAlign: 'center' }}>Đơn Vị</th>
+                  <th style={{ padding: '10px 8px', textTransform: 'uppercase', fontSize: '11px', width: '130px', textAlign: 'right' }}>Đơn Giá (VNĐ)</th>
+                  <th style={{ padding: '10px 6px', textTransform: 'uppercase', fontSize: '11px', width: '75px', textAlign: 'center' }}>+ % Tăng</th>
+                  <th style={{ padding: '10px 8px', textTransform: 'uppercase', fontSize: '11px', width: '145px', textAlign: 'right', color: 'var(--foreground)' }}>Giá Sau Tăng (VNĐ)</th>
+                  <th style={{ padding: '10px 6px', textTransform: 'uppercase', fontSize: '11px', width: '100px', textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {formData.items.map((item) => (
+                {formData.items.map((item, idx) => (
                   <tr
                     key={item.id}
                     style={{
-                      borderBottom: '1px solid var(--border)'
+                      borderBottom: '1px solid var(--border)',
+                      transition: 'background 0.15s ease'
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     {/* STT */}
-                    <td style={{ padding: '8px', textAlign: 'center' }}>
+                    <td style={{ padding: '8px 6px', textAlign: 'center', width: '46px' }}>
                       <input
                         type="text"
                         className="setting-input"
-                        style={{ width: '42px', textAlign: 'center', padding: '6px 2px' }}
+                        style={{ width: '38px', textAlign: 'center', padding: '6px 2px', fontWeight: 600 }}
                         value={item.stt}
                         onChange={(e) => handleItemChange(item.id, 'stt', e.target.value)}
                       />
                     </td>
 
-                    {/* Tên Hàng Hóa */}
-                    <td style={{ padding: '8px' }}>
+                    {/* Tên Hàng Hóa - Luôn rộng rãi, không bao giờ bị ép */}
+                    <td style={{ padding: '8px 10px', minWidth: '260px' }}>
                       <input
                         type="text"
                         className="setting-input"
-                        style={{ width: '100%', fontWeight: 500 }}
+                        style={{ width: '100%', fontWeight: 500, boxSizing: 'border-box' }}
                         value={item.ten_hang}
                         onChange={(e) => handleItemChange(item.id, 'ten_hang', e.target.value)}
-                        placeholder="VD: Gạch không nung 40x80x180"
+                        placeholder="VD: Gạch không nung 40x80x180 mác 75..."
                       />
                     </td>
 
+                    {/* Ghi Chú (Tùy chọn hiển thị) */}
+                    {formData.co_ghi_chu && (
+                      <td
+                        style={{
+                          padding: '8px 10px',
+                          width: '210px',
+                          minWidth: '180px',
+                          background: 'rgba(59, 130, 246, 0.02)',
+                          borderLeft: '1px solid var(--border)'
+                        }}
+                      >
+                        <input
+                          type="text"
+                          className="setting-input"
+                          style={{ width: '100%', fontSize: '12.5px', boxSizing: 'border-box' }}
+                          value={item.ghi_chu || ''}
+                          onChange={(e) => handleItemChange(item.id, 'ghi_chu', e.target.value)}
+                          placeholder="Quy cách, mác, điều kiện..."
+                        />
+                      </td>
+                    )}
+
                     {/* Đơn Vị */}
-                    <td style={{ padding: '8px', textAlign: 'center' }}>
+                    <td style={{ padding: '8px 6px', textAlign: 'center', width: '105px' }}>
                       {COMMON_UNITS.includes(item.don_vi) ? (
                         <select
                           value={item.don_vi}
@@ -986,16 +1171,17 @@ export function QuotationForm() {
                           }}
                           style={{
                             width: '100%',
-                            padding: '7px 8px',
+                            padding: '6px 6px',
                             background: 'var(--background)',
                             border: '1px solid var(--border)',
                             borderRadius: '8px',
                             color: 'var(--foreground)',
-                            fontSize: '12.5px',
+                            fontSize: '12px',
                             fontFamily: "'Inter', sans-serif",
                             fontWeight: 600,
                             outline: 'none',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            boxSizing: 'border-box'
                           }}
                         >
                           {COMMON_UNITS.map((u) => (
@@ -1005,11 +1191,11 @@ export function QuotationForm() {
                           ))}
                         </select>
                       ) : (
-                        <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
                           <input
                             type="text"
                             className="setting-input"
-                            style={{ width: '80px', textAlign: 'center' }}
+                            style={{ width: '70px', textAlign: 'center', padding: '6px 2px', fontSize: '12px' }}
                             value={item.don_vi}
                             onChange={(e) => handleItemChange(item.id, 'don_vi', e.target.value)}
                             placeholder="Nhập..."
@@ -1022,7 +1208,8 @@ export function QuotationForm() {
                               borderRadius: '6px',
                               fontSize: '11px',
                               cursor: 'pointer',
-                              color: 'var(--muted-foreground)'
+                              color: 'var(--muted-foreground)',
+                              padding: '3px 4px'
                             }}
                             title="Chọn lại danh sách"
                           >
@@ -1033,11 +1220,11 @@ export function QuotationForm() {
                     </td>
 
                     {/* Đơn Giá Gốc */}
-                    <td style={{ padding: '8px', textAlign: 'right' }}>
+                    <td style={{ padding: '8px 6px', textAlign: 'right', width: '130px' }}>
                       <input
                         type="text"
                         className="setting-input"
-                        style={{ width: '135px', textAlign: 'right', fontWeight: 600 }}
+                        style={{ width: '100%', textAlign: 'right', fontWeight: 600, boxSizing: 'border-box' }}
                         value={item.don_gia}
                         onChange={(e) => handleItemChange(item.id, 'don_gia', e.target.value)}
                         placeholder="1.340"
@@ -1045,16 +1232,17 @@ export function QuotationForm() {
                     </td>
 
                     {/* + % Tăng */}
-                    <td style={{ padding: '8px', textAlign: 'center' }}>
-                      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', width: '75px' }}>
+                    <td style={{ padding: '8px 4px', textAlign: 'center', width: '75px' }}>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
                         <input
                           type="text"
                           className="setting-input"
                           style={{
                             width: '100%',
                             textAlign: 'center',
-                            padding: '6px 18px 6px 4px',
+                            padding: '6px 16px 6px 2px',
                             fontWeight: 600,
+                            boxSizing: 'border-box',
                             color: item.phan_tram_tang && Number(item.phan_tram_tang) !== 0 ? 'var(--primary-foreground)' : 'var(--foreground)',
                             background: item.phan_tram_tang && Number(item.phan_tram_tang) !== 0 ? 'var(--primary)' : 'var(--background)'
                           }}
@@ -1065,8 +1253,8 @@ export function QuotationForm() {
                         <span
                           style={{
                             position: 'absolute',
-                            right: '6px',
-                            fontSize: '11px',
+                            right: '5px',
+                            fontSize: '10px',
                             fontWeight: 700,
                             color: item.phan_tram_tang && Number(item.phan_tram_tang) !== 0 ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
                             pointerEvents: 'none'
@@ -1078,15 +1266,16 @@ export function QuotationForm() {
                     </td>
 
                     {/* Giá Sau Tăng (Tự động tính) */}
-                    <td style={{ padding: '8px', textAlign: 'right' }}>
+                    <td style={{ padding: '8px 6px', textAlign: 'right', width: '145px' }}>
                       <input
                         type="text"
                         className="setting-input"
                         style={{
-                          width: '150px',
+                          width: '100%',
                           textAlign: 'right',
                           fontWeight: 700,
-                          fontSize: '13.5px',
+                          fontSize: '13px',
+                          boxSizing: 'border-box',
                           color: (item.phan_tram_tang && Number(item.phan_tram_tang) > 0) ? '#10b981' : 'var(--foreground)',
                           background: (item.phan_tram_tang && Number(item.phan_tram_tang) > 0) ? 'rgba(16, 185, 129, 0.08)' : 'var(--background)',
                           borderColor: (item.phan_tram_tang && Number(item.phan_tram_tang) > 0) ? 'rgba(16, 185, 129, 0.35)' : 'var(--border)'
@@ -1098,29 +1287,246 @@ export function QuotationForm() {
                       />
                     </td>
 
-                    {/* Xóa Row */}
-                    <td style={{ padding: '8px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleRemoveItem(item.id)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--muted-foreground)',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          borderRadius: '4px'
-                        }}
-                        title="Xóa dòng này"
-                        onMouseOver={(e) => (e.currentTarget.style.color = 'var(--destructive)')}
-                        onMouseOut={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    {/* Thao Tác (Nhân bản, Lên, Xuống, Xóa) */}
+                    <td style={{ padding: '8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicateItem(item.id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--muted-foreground)',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="Nhân bản (sao chép) dòng này"
+                          onMouseOver={(e) => (e.currentTarget.style.color = 'var(--primary)')}
+                          onMouseOut={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+                        >
+                          <Copy size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveItem(idx, 'up')}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: idx === 0 ? 'var(--border)' : 'var(--muted-foreground)',
+                            cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="Di chuyển dòng lên trên"
+                          onMouseOver={(e) => {
+                            if (idx !== 0) e.currentTarget.style.color = 'var(--primary)'
+                          }}
+                          onMouseOut={(e) => {
+                            if (idx !== 0) e.currentTarget.style.color = 'var(--muted-foreground)'
+                          }}
+                        >
+                          <ChevronUp size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === formData.items.length - 1}
+                          onClick={() => handleMoveItem(idx, 'down')}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: idx === formData.items.length - 1 ? 'var(--border)' : 'var(--muted-foreground)',
+                            cursor: idx === formData.items.length - 1 ? 'not-allowed' : 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="Di chuyển dòng xuống dưới"
+                          onMouseOver={(e) => {
+                            if (idx !== formData.items.length - 1) e.currentTarget.style.color = 'var(--primary)'
+                          }}
+                          onMouseOut={(e) => {
+                            if (idx !== formData.items.length - 1) e.currentTarget.style.color = 'var(--muted-foreground)'
+                          }}
+                        >
+                          <ChevronDown size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={formData.items.length === 1}
+                          onClick={() => handleRemoveItem(item.id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: formData.items.length === 1 ? 'var(--border)' : 'var(--muted-foreground)',
+                            cursor: formData.items.length === 1 ? 'not-allowed' : 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="Xóa dòng này"
+                          onMouseOver={(e) => {
+                            if (formData.items.length > 1) e.currentTarget.style.color = 'var(--destructive)'
+                          }}
+                          onMouseOut={(e) => {
+                            if (formData.items.length > 1) e.currentTarget.style.color = 'var(--muted-foreground)'
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Quick Add Row & Table Actions Bar */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 14px',
+              background: 'var(--muted)',
+              borderTop: '1px solid var(--border)',
+              borderRadius: '0 0 10px 10px'
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleAddItem}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 16px',
+                background: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={15} color="var(--primary-foreground)" />
+              Thêm dòng hàng hóa
+            </button>
+            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
+              Đang có <strong>{formData.items.length}</strong> mặt hàng trong bảng báo giá
+            </span>
+          </div>
+
+          {/* Quotation Totals & VAT Summary Card */}
+          <div
+            style={{
+              marginTop: '16px',
+              padding: '16px 20px',
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '20px',
+              alignItems: 'center'
+            }}
+          >
+            {/* Left: VAT Selector & Words */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Receipt size={16} color="var(--primary)" />
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>Tùy chọn thuế VAT:</span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {[
+                    { label: '0%', val: 0 },
+                    { label: '8%', val: 8 },
+                    { label: '10%', val: 10 }
+                  ].map((v) => (
+                    <button
+                      key={v.val}
+                      type="button"
+                      onClick={() => setVatRate(v.val)}
+                      style={{
+                        padding: '4px 10px',
+                        background: vatRate === v.val ? 'var(--primary)' : 'var(--muted)',
+                        color: vatRate === v.val ? 'var(--primary-foreground)' : 'var(--foreground)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: vatRate === v.val ? 700 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  fontSize: '12.5px',
+                  lineHeight: '1.5',
+                  color: 'var(--muted-foreground)',
+                  padding: '8px 12px',
+                  background: 'var(--background)',
+                  border: '1px dashed var(--border)',
+                  borderRadius: '8px'
+                }}
+              >
+                <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>Số tiền viết bằng chữ: </span>
+                <span style={{ fontStyle: 'italic', color: 'var(--primary)' }}>{grandTotalInWords}</span>
+              </div>
+            </div>
+
+            {/* Right: Detailed Totals */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                paddingLeft: '16px',
+                borderLeft: '1px solid var(--border)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--muted-foreground)' }}>Tổng tiền hàng (Đơn giá):</span>
+                <span style={{ fontWeight: 600 }}>{subtotal.toLocaleString('vi-VN')} đ</span>
+              </div>
+
+              {vatRate > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--muted-foreground)' }}>Thuế VAT ({vatRate}%):</span>
+                  <span style={{ fontWeight: 600, color: '#f59e0b' }}>+{vatAmount.toLocaleString('vi-VN')} đ</span>
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  paddingTop: '8px',
+                  borderTop: '1px solid var(--border)',
+                  fontSize: '15px'
+                }}
+              >
+                <span style={{ fontWeight: 700, color: 'var(--foreground)' }}>TỔNG CỘNG:</span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#10b981' }}>
+                  {grandTotal.toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

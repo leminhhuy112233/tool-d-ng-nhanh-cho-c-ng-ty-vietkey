@@ -8,7 +8,8 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeft,
-  Zap
+  Zap,
+  Clock
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -41,6 +42,11 @@ const navItems: NavItem[] = [
     path: '/advance-request',
     label: 'Đề nghị tạm ứng',
     icon: <CreditCard size={20} />
+  },
+  {
+    path: '/history',
+    label: 'Lịch sử xuất file',
+    icon: <Clock size={20} />
   },
   {
     path: '/templates',

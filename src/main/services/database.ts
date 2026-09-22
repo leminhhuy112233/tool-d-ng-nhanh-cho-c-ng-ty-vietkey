@@ -139,3 +139,13 @@ export function addHistoryRecord(record: Omit<ExportHistoryRecord, 'id' | 'creat
   data.history = data.history.slice(0, 50)
   saveToDisk()
 }
+
+export function deleteHistoryRecord(id: string): void {
+  data.history = (data.history || []).filter((h) => h.id !== id)
+  saveToDisk()
+}
+
+export function clearHistory(): void {
+  data.history = []
+  saveToDisk()
+}

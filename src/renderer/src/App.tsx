@@ -9,6 +9,7 @@ import { QuotationForm } from './pages/QuotationForm'
 import { AdvanceRequestForm } from './pages/AdvanceRequestForm'
 import { TemplateManager } from './pages/TemplateManager'
 import { Settings } from './pages/Settings'
+import { History } from './pages/History'
 import { useThemeStore } from './stores/theme.store'
 import { playClickSound } from './lib/sound'
 
@@ -48,6 +49,14 @@ function AnimatedRoutes() {
             element={
               <PageTransition>
                 <AdvanceRequestForm />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <PageTransition>
+                <History />
               </PageTransition>
             }
           />

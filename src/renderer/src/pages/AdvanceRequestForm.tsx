@@ -14,11 +14,13 @@ import {
   Trash2,
   Download,
   ExternalLink,
-  Folder
+  Folder,
+  RotateCcw
 } from 'lucide-react'
 import type { AdvanceRequestData, ExportFileType, PartnerProfile } from '../../../shared/types'
 import { playSuccessChime } from '../lib/sound'
 import { numberToVietnameseWords } from '../../../shared/number-to-words'
+import { useFormDraftsStore } from '../stores/formDrafts.store'
 
 interface CalcRow {
   id: string
@@ -52,20 +54,18 @@ export function AdvanceRequestForm() {
     { id: '1', name: '', qty: '', price: '' }
   ])
 
-  const [formData, setFormData] = useState<AdvanceRequestData>({
-    ngay: currentDay,
-    thang: currentMonth,
-    nam: currentYear,
-    ten_cong_ty_khach: '',
-    noi_dung_cung_cap: 'VLXD các loại',
-    dot_tam_ung: '1',
-    gia_tri_don_hang: '',
-    gia_tri_tam_ung: '',
-    so_tien_bang_chu: '',
-    file_name: 'DeNghiTamUng.docx',
-    export_dir: '',
-    export_type: 'word'
-  })
+  // Form Draft Persistence Store (giữ nguyên dữ liệu khi chuyển tab)
+  const formData = useFormDraftsStore((s) => s.advanceRequestDraft)
+  const setFormData = useFormDraftsStore((s) => s.setAdvanceRequestDraft)
+  const resetAdvanceRequestDraft = useFormDraftsStore((s) => s.resetAdvanceRequestDraft)
+
+  const handleClearAllData = () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ thông tin đang điền trong giấy đề nghị tạm ứng để làm mới?')) {
+      resetAdvanceRequestDraft()
+      setCalcRows([{ id: '1', name: '', qty: '', price: '' }])
+      showToast('success', 'Đã xóa toàn bộ thông tin và làm mới giấy đề nghị tạm ứng!')
+    }
+  }
 
   // Load saved partners & export directory
   useEffect(() => {
@@ -324,28 +324,61 @@ export function AdvanceRequestForm() {
         title="Đề Nghị Tạm Ứng"
         description="Lập giấy đề nghị tạm ứng kinh phí mua sắm vật tư, tự động đổi số tiền thành chữ và xuất file (Word / PDF / Cả 2)"
       >
-        <button
-          onClick={handleExportDocx}
-          disabled={isExporting}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 22px',
-            background: 'var(--primary)',
-            color: 'var(--primary-foreground)',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(178, 213, 229, 0.4)',
-            fontFamily: "'Inter', sans-serif"
-          }}
-        >
-          <Download size={18} color="var(--primary-foreground)" />
-          {isExporting ? 'Đang xuất file...' : `Xuất Giấy Tạm Ứng (${formData.export_type.toUpperCase()})`}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={handleClearAllData}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 16px',
+              background: 'var(--card)',
+              color: 'var(--muted-foreground)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Xóa toàn bộ thông tin đã điền và làm mới đề nghị tạm ứng"
+            onMouseOver={(e) => {
+              e.currentTarget.style.color = 'var(--destructive)'
+              e.currentTarget.style.borderColor = 'var(--destructive)'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.color = 'var(--muted-foreground)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+            }}
+          >
+            <RotateCcw size={15} />
+            Xóa toàn bộ thông tin
+          </button>
+
+          <button
+            onClick={handleExportDocx}
+            disabled={isExporting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 22px',
+              background: 'var(--primary)',
+              color: 'var(--primary-foreground)',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(178, 213, 229, 0.4)',
+              fontFamily: "'Inter', sans-serif"
+            }}
+          >
+            <Download size={18} color="var(--primary-foreground)" />
+            {isExporting ? 'Đang xuất file...' : `Xuất Giấy Tạm Ứng (${formData.export_type.toUpperCase()})`}
+          </button>
+        </div>
       </PageHeader>
 
       {/* Quick Action Top Bar */}

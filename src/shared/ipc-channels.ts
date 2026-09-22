@@ -31,6 +31,8 @@ export const IPC_CHANNELS = {
   // Export History
   HISTORY_GET_ALL: 'history:get-all',
   HISTORY_ADD: 'history:add',
+  HISTORY_DELETE: 'history:delete',
+  HISTORY_CLEAR: 'history:clear',
 
   // Document exports
   DOCUMENT_EXPORT_CONTRACT: 'document:export-contract',

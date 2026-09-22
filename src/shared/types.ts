@@ -22,6 +22,7 @@ export interface ExportHistoryRecord {
   exportType: ExportFileType
   customerName: string
   createdAt: string
+  dataSnapshot?: ContractData | QuotationData | AdvanceRequestData
 }
 
 // Contract Document Data Schema
@@ -68,6 +69,7 @@ export interface QuotationItem {
   id: string
   stt: string
   ten_hang: string
+  ghi_chu?: string
   don_vi: string
   don_gia: string
   phan_tram_tang?: string
@@ -82,6 +84,7 @@ export interface QuotationData {
   file_name: string
   export_dir: string
   export_type: ExportFileType
+  co_ghi_chu?: boolean
   items: QuotationItem[]
 }
 
@@ -155,6 +158,8 @@ export interface ElectronAPI {
   // Export History
   getHistory: () => Promise<ExportHistoryRecord[]>
   addHistoryRecord: (record: Omit<ExportHistoryRecord, 'id' | 'createdAt'>) => Promise<void>
+  deleteHistoryRecord: (id: string) => Promise<void>
+  clearHistory: () => Promise<void>
 
   // Document Exports
   exportContract: (data: ContractData, targetPath: string) => Promise<ExportResult>
@@ -165,6 +170,10 @@ export interface ElectronAPI {
   parseTextWithAI: (rawText: string) => Promise<Partial<ContractData>>
   parseQuotationTextWithAI: (rawText: string) => Promise<Partial<QuotationData>>
   parseAdvanceRequestWithAI: (rawText: string) => Promise<Partial<AdvanceRequestData>>
+
+  // Template management
+  openTemplatesFolder: () => Promise<void>
+  openTemplateFile: (fileName: string) => Promise<void>
 
   // App info
   getAppVersion: () => string

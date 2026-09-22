@@ -21,6 +21,7 @@ import {
 import type { ContractData, ExportFileType } from '../../../shared/types'
 import { DEFAULT_BEN_B } from '../../../shared/types'
 import { playSuccessChime } from '../lib/sound'
+import { useFormDraftsStore } from '../stores/formDrafts.store'
 
 export function ContractForm() {
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual')
@@ -43,30 +44,17 @@ export function ContractForm() {
   const currentMonth = String(today.getMonth() + 1).padStart(2, '0')
   const currentYear = String(today.getFullYear())
 
-  // Main Contract Data State
-  const [formData, setFormData] = useState<ContractData>({
-    so_hd: `${currentDay}${currentMonth}/${currentYear}/HĐNT/LH-VK`,
-    ngay: currentDay,
-    thang: currentMonth,
-    nam: currentYear,
-    noi_dung_mua_ban: 'mua bán vật tư, vật liệu xây dựng',
+  // Form Draft Persistence Store (giữ nguyên dữ liệu khi chuyển tab)
+  const formData = useFormDraftsStore((s) => s.contractDraft)
+  const setFormData = useFormDraftsStore((s) => s.setContractDraft)
+  const resetContractDraft = useFormDraftsStore((s) => s.resetContractDraft)
 
-    file_name: 'HopDong_Mau.docx',
-    export_dir: '',
-    export_type: 'word',
-
-    // Bên Mua (Bên A)
-    bena_xung_danh: 'Ông',
-    bena_ten_cong_ty: '',
-    bena_dai_dien: '',
-    bena_chuc_vu: 'Giám đốc',
-    bena_dia_chi: '',
-    bena_tai_khoan: '',
-    bena_mst: '',
-
-    // Bên Bán (Bên B) - VietKey
-    ...DEFAULT_BEN_B
-  })
+  const handleClearAllData = () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ thông tin đang điền trong hợp đồng để làm mới?')) {
+      resetContractDraft()
+      showToast('success', 'Đã xóa toàn bộ thông tin và làm mới hợp đồng!')
+    }
+  }
 
   // Load default export dir from settings
   useEffect(() => {
@@ -288,28 +276,61 @@ export function ContractForm() {
         title="Hợp đồng nguyên tắc"
         description="Điền thông tin hoặc dán đoạn văn bản nhờ AI bóc tách nhanh, sau đó xuất file (Word / PDF / Cả 2)"
       >
-        <button
-          onClick={handleExportDocx}
-          disabled={isExporting}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 22px',
-            background: 'var(--primary)',
-            color: 'var(--primary-foreground)',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(178, 213, 229, 0.4)',
-            fontFamily: "'Inter', sans-serif"
-          }}
-        >
-          <Download size={18} color="var(--primary-foreground)" />
-          {isExporting ? 'Đang xuất file...' : `Xuất Hợp Đồng (${formData.export_type.toUpperCase()})`}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={handleClearAllData}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 16px',
+              background: 'var(--card)',
+              color: 'var(--muted-foreground)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Xóa toàn bộ thông tin đã điền và làm mới hợp đồng"
+            onMouseOver={(e) => {
+              e.currentTarget.style.color = 'var(--destructive)'
+              e.currentTarget.style.borderColor = 'var(--destructive)'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.color = 'var(--muted-foreground)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+            }}
+          >
+            <RotateCcw size={15} />
+            Xóa toàn bộ thông tin
+          </button>
+
+          <button
+            onClick={handleExportDocx}
+            disabled={isExporting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 22px',
+              background: 'var(--primary)',
+              color: 'var(--primary-foreground)',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(178, 213, 229, 0.4)',
+              fontFamily: "'Inter', sans-serif"
+            }}
+          >
+            <Download size={18} color="var(--primary-foreground)" />
+            {isExporting ? 'Đang xuất file...' : `Xuất Hợp Đồng (${formData.export_type.toUpperCase()})`}
+          </button>
+        </div>
       </PageHeader>
 
       {/* Control Bar */}

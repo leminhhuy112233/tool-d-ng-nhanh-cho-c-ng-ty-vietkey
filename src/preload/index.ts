@@ -37,6 +37,8 @@ const api: ElectronAPI = {
   // Export History
   getHistory: () => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_GET_ALL),
   addHistoryRecord: (record) => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_ADD, record),
+  deleteHistoryRecord: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_DELETE, id),
+  clearHistory: () => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_CLEAR),
 
   // Document Exports
   exportContract: (data: ContractData, targetPath: string) =>
@@ -57,6 +59,10 @@ const api: ElectronAPI = {
 
   parseAdvanceRequestWithAI: (rawText: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.DOCUMENT_PARSE_ADVANCE_REQUEST_AI, rawText),
+
+  // Template management
+  openTemplatesFolder: () => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_LIST),
+  openTemplateFile: (fileName: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_GET, fileName),
 
   // App info
   getAppVersion: () => '1.0.0'

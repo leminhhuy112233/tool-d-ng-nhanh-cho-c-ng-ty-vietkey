@@ -1,8 +1,10 @@
 import { ipcMain } from 'electron'
+import { basename } from 'path'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import { generateContractDocx, generateQuotationDocx, generateAdvanceRequestDocx } from '../services/docx-engine'
 import { convertDocxToPdf } from '../services/pdf-converter'
 import { parseTextWithAI, parseQuotationTextWithAI } from '../services/ai-parser'
+import { addHistoryRecord } from '../services/database'
 import type { ContractData, QuotationData, AdvanceRequestData, ExportResult } from '../../shared/types'
 
 export function registerDocumentHandlers(): void {
@@ -14,6 +16,21 @@ export function registerDocumentHandlers(): void {
       if (!docxRes.success) return docxRes
 
       const exportType = data.export_type || 'word'
+
+      // Ghi nhận vào lịch sử xuất tài liệu kèm toàn bộ dữ liệu để chỉnh sửa tiếp
+      try {
+        addHistoryRecord({
+          fileName: basename(targetPath),
+          filePath: targetPath,
+          docType: 'contract',
+          exportType,
+          customerName: (data.benb_ten_cong_ty || data.bena_ten_cong_ty || 'Hợp đồng nguyên tắc').trim(),
+          dataSnapshot: data
+        })
+      } catch (err) {
+        console.error('Lỗi lưu lịch sử xuất hợp đồng:', err)
+      }
+
       if (exportType === 'word') {
         return { success: true, filePath: targetPath }
       }
@@ -45,6 +62,21 @@ export function registerDocumentHandlers(): void {
       if (!docxRes.success) return docxRes
 
       const exportType = data.export_type || 'word'
+
+      // Ghi nhận vào lịch sử xuất tài liệu kèm toàn bộ dữ liệu để chỉnh sửa tiếp
+      try {
+        addHistoryRecord({
+          fileName: basename(targetPath),
+          filePath: targetPath,
+          docType: 'quotation',
+          exportType,
+          customerName: (data.ten_khach_hang || 'Báo giá mới').trim(),
+          dataSnapshot: data
+        })
+      } catch (err) {
+        console.error('Lỗi lưu lịch sử xuất báo giá:', err)
+      }
+
       if (exportType === 'word') {
         return { success: true, filePath: targetPath }
       }
@@ -76,6 +108,21 @@ export function registerDocumentHandlers(): void {
       if (!docxRes.success) return docxRes
 
       const exportType = data.export_type || 'word'
+
+      // Ghi nhận vào lịch sử xuất tài liệu kèm toàn bộ dữ liệu để chỉnh sửa tiếp
+      try {
+        addHistoryRecord({
+          fileName: basename(targetPath),
+          filePath: targetPath,
+          docType: 'advance_request',
+          exportType,
+          customerName: (data.ten_cong_ty_khach || 'Đề nghị tạm ứng').trim(),
+          dataSnapshot: data
+        })
+      } catch (err) {
+        console.error('Lỗi lưu lịch sử xuất đề nghị tạm ứng:', err)
+      }
+
       if (exportType === 'word') {
         return { success: true, filePath: targetPath }
       }
