@@ -255,42 +255,44 @@ export function TemplateUploadModal({ isOpen, onClose, onTemplateCreated }: Temp
               <div
                 onClick={handleSelectFile}
                 style={{
-                  border: '2px dashed var(--border)',
-                  borderRadius: '12px',
+                  border: '2px dashed rgba(178, 213, 229, 0.35)',
+                  borderRadius: '14px',
                   padding: '40px 20px',
                   textAlign: 'center',
                   cursor: 'pointer',
-                  background: 'var(--accent)',
+                  background: 'rgba(178, 213, 229, 0.04)',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = 'var(--primary)'
-                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)'
+                  e.currentTarget.style.background = 'rgba(178, 213, 229, 0.09)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)'
-                  e.currentTarget.style.background = 'var(--accent)'
+                  e.currentTarget.style.borderColor = 'rgba(178, 213, 229, 0.35)'
+                  e.currentTarget.style.background = 'rgba(178, 213, 229, 0.04)'
                 }}
               >
                 <div
                   style={{
-                    width: '54px',
-                    height: '54px',
-                    borderRadius: '12px',
-                    background: 'var(--primary)',
-                    color: 'var(--primary-foreground)',
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '14px',
+                    background: 'rgba(178, 213, 229, 0.12)',
+                    color: 'var(--primary)',
+                    border: '1px solid rgba(178, 213, 229, 0.25)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    margin: '0 auto 14px'
+                    margin: '0 auto 16px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                   }}
                 >
                   <Upload size={26} />
                 </div>
-                <h4 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 600, color: 'var(--foreground)' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '15.5px', fontWeight: 700, color: 'var(--foreground)' }}>
                   Bấm vào đây để chọn file Word (.docx) mẫu
                 </h4>
-                <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--muted-foreground)' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted-foreground)' }}>
                   Hệ thống sẽ quét sâu toàn bộ nội dung và phân tích các ô cần điền
                 </p>
               </div>

@@ -435,6 +435,41 @@ export function History() {
             </div>
           </div>
         </div>
+
+        <div
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+          }}
+        >
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              background: 'rgba(139, 92, 246, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Sparkles size={20} color="#8b5cf6" />
+          </div>
+          <div>
+            <div style={{ fontSize: '11.5px', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Mẫu Tùy Biến (AI)
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: '#8b5cf6' }}>
+              {customCount}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
