@@ -18,11 +18,13 @@ export interface ExportHistoryRecord {
   id: string
   fileName: string
   filePath: string
-  docType: 'contract' | 'quotation' | 'advance_request'
+  docType: 'contract' | 'quotation' | 'advance_request' | 'custom'
   exportType: ExportFileType
   customerName: string
   createdAt: string
-  dataSnapshot?: ContractData | QuotationData | AdvanceRequestData
+  templateId?: string
+  templateName?: string
+  dataSnapshot?: ContractData | QuotationData | AdvanceRequestData | Record<string, any>
 }
 
 // Contract Document Data Schema
@@ -125,6 +127,54 @@ export interface ExportResult {
   error?: string
 }
 
+// ===== Custom Dynamic Template Types =====
+export type TemplateFieldType = 'text' | 'currency' | 'number' | 'date' | 'textarea' | 'select' | 'table'
+
+export interface TableSubField {
+  key: string
+  label: string
+  type: 'text' | 'number' | 'currency'
+  width?: string
+}
+
+export interface TemplateField {
+  id: string
+  key: string
+  label: string
+  type: TemplateFieldType
+  section?: string
+  required?: boolean
+  defaultValue?: string
+  placeholder?: string
+  options?: string[]
+  subFields?: TableSubField[]
+}
+
+export interface CustomTemplateDef {
+  id: string
+  name: string
+  description?: string
+  fileName: string
+  docxFilePath: string
+  createdAt: string
+  updatedAt: string
+  fields: TemplateField[]
+  isFromRedHighlight?: boolean
+  category?: string
+}
+
+export interface AnalyzedTemplateResult {
+  success: boolean
+  error?: string
+  templateName: string
+  fields: TemplateField[]
+  isRedTextDetected: boolean
+  redFieldCount: number
+  normalTagCount: number
+  hasTable: boolean
+  processedDocxBase64?: string
+}
+
 export interface ElectronAPI {
   // Settings
   getSetting: (key: string) => Promise<string | null>
@@ -174,6 +224,22 @@ export interface ElectronAPI {
   // Template management
   openTemplatesFolder: () => Promise<void>
   openTemplateFile: (fileName: string) => Promise<void>
+
+  // Custom Dynamic Template Management (MỚI)
+  analyzeTemplate: (filePath: string) => Promise<AnalyzedTemplateResult>
+  getCustomTemplates: () => Promise<CustomTemplateDef[]>
+  saveCustomTemplate: (
+    template: Omit<CustomTemplateDef, 'id' | 'createdAt' | 'updatedAt'>,
+    processedDocxBase64?: string
+  ) => Promise<{ success: boolean; template?: CustomTemplateDef; error?: string }>
+  deleteCustomTemplate: (id: string) => Promise<{ success: boolean; error?: string }>
+  getCustomTemplateById: (id: string) => Promise<CustomTemplateDef | null>
+  exportCustomDocument: (
+    templateId: string,
+    data: Record<string, any>,
+    targetPath: string,
+    exportType?: ExportFileType
+  ) => Promise<ExportResult>
 
   // App info
   getAppVersion: () => string

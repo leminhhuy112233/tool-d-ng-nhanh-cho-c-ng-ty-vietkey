@@ -1,11 +1,11 @@
 import { ipcMain } from 'electron'
 import { basename } from 'path'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
-import { generateContractDocx, generateQuotationDocx, generateAdvanceRequestDocx } from '../services/docx-engine'
+import { generateContractDocx, generateQuotationDocx, generateAdvanceRequestDocx, generateCustomDocx } from '../services/docx-engine'
 import { convertDocxToPdf } from '../services/pdf-converter'
 import { parseTextWithAI, parseQuotationTextWithAI } from '../services/ai-parser'
-import { addHistoryRecord } from '../services/database'
-import type { ContractData, QuotationData, AdvanceRequestData, ExportResult } from '../../shared/types'
+import { addHistoryRecord, getCustomTemplateById } from '../services/database'
+import type { ContractData, QuotationData, AdvanceRequestData, ExportResult, ExportFileType } from '../../shared/types'
 
 export function registerDocumentHandlers(): void {
   // 1. Xuất Hợp đồng nguyên tắc (Word / PDF / Cả 2)
@@ -155,4 +155,62 @@ export function registerDocumentHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.DOCUMENT_PARSE_QUOTATION_AI, async (_event, rawText: string) => {
     return await parseQuotationTextWithAI(rawText)
   })
+
+  // 6. Xuất Mẫu Tùy Biến (Custom Template)
+  ipcMain.handle(
+    IPC_CHANNELS.DOCUMENT_EXPORT_CUSTOM,
+    async (
+      _event,
+      templateId: string,
+      data: Record<string, any>,
+      targetPath: string,
+      exportType: ExportFileType = 'word'
+    ): Promise<ExportResult> => {
+      const template = getCustomTemplateById(templateId)
+      if (!template) {
+        return { success: false, error: `Không tìm thấy mẫu tài liệu với ID: ${templateId}` }
+      }
+
+      const docxRes = generateCustomDocx(template.docxFilePath, data, targetPath)
+      if (!docxRes.success) return docxRes
+
+      // Ghi nhận vào lịch sử xuất tài liệu
+      try {
+        const custName = data.ten_khach_hang || data.ten_cong_ty || data.dai_dien || template.name
+        addHistoryRecord({
+          fileName: basename(targetPath),
+          filePath: targetPath,
+          docType: 'custom',
+          exportType,
+          customerName: String(custName).trim(),
+          templateId: template.id,
+          templateName: template.name,
+          dataSnapshot: data
+        })
+      } catch (err) {
+        console.error('Lỗi lưu lịch sử xuất tài liệu tùy biến:', err)
+      }
+
+      if (exportType === 'word') {
+        return { success: true, filePath: targetPath }
+      }
+
+      const pdfPath = targetPath.replace(/\.docx$/i, '') + '.pdf'
+      const pdfRes = await convertDocxToPdf(targetPath, pdfPath)
+      const actualPdfPath = pdfRes.pdfPath || pdfPath
+
+      if (exportType === 'pdf') {
+        return pdfRes.success
+          ? { success: true, pdfPath: actualPdfPath }
+          : { success: false, error: pdfRes.error }
+      }
+
+      return {
+        success: true,
+        filePath: targetPath,
+        pdfPath: pdfRes.success ? actualPdfPath : undefined,
+        error: pdfRes.success ? undefined : `Đã xuất file Word thành công, nhưng gặp lỗi PDF: ${pdfRes.error}`
+      }
+    }
+  )
 }

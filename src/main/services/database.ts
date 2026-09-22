@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import type { PartnerProfile, ExportHistoryRecord } from '../../shared/types'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import type { PartnerProfile, ExportHistoryRecord, CustomTemplateDef } from '../../shared/types'
 
 interface StoreData {
   settings: {
@@ -12,6 +12,7 @@ interface StoreData {
   }
   partners: PartnerProfile[]
   history: ExportHistoryRecord[]
+  customTemplates: CustomTemplateDef[]
   templates: Array<{
     id: string
     name: string
@@ -31,6 +32,7 @@ const DEFAULT_DATA: StoreData = {
   },
   partners: [],
   history: [],
+  customTemplates: [],
   templates: []
 }
 
@@ -72,6 +74,7 @@ export function initStore(): void {
   data.settings = { ...DEFAULT_DATA.settings, ...data.settings }
   data.partners = data.partners || []
   data.history = data.history || []
+  data.customTemplates = data.customTemplates || []
   saveToDisk()
 }
 
@@ -149,3 +152,61 @@ export function clearHistory(): void {
   data.history = []
   saveToDisk()
 }
+
+// ===== Custom Dynamic Template Store Helpers =====
+function getCustomTemplatesDir(): string {
+  const dir = join(app.getPath('userData'), 'custom_templates')
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+  return dir
+}
+
+export function getCustomTemplates(): CustomTemplateDef[] {
+  return data.customTemplates || []
+}
+
+export function getCustomTemplateById(id: string): CustomTemplateDef | null {
+  return (data.customTemplates || []).find((t) => t.id === id) || null
+}
+
+export function saveCustomTemplate(
+  templateData: Omit<CustomTemplateDef, 'id' | 'createdAt' | 'updatedAt'>,
+  processedDocxBase64?: string
+): CustomTemplateDef {
+  const templatesDir = getCustomTemplatesDir()
+  const id = `tpl_${Date.now()}`
+  const targetDocxName = `${id}.docx`
+  const targetDocxPath = join(templatesDir, targetDocxName)
+
+  // Nếu có buffer base64 đã qua xử lý (thay chữ đỏ thành thẻ), lưu buffer đó
+  if (processedDocxBase64) {
+    const buf = Buffer.from(processedDocxBase64, 'base64')
+    writeFileSync(targetDocxPath, buf)
+  } else if (existsSync(templateData.docxFilePath)) {
+    // Nếu không, sao chép file gốc vào thư mục custom_templates của app
+    const buf = readFileSync(templateData.docxFilePath)
+    writeFileSync(targetDocxPath, buf)
+  }
+
+  const newTemplate: CustomTemplateDef = {
+    ...templateData,
+    id,
+    docxFilePath: targetDocxPath,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+
+  data.customTemplates = data.customTemplates || []
+  data.customTemplates.unshift(newTemplate)
+  saveToDisk()
+  return newTemplate
+}
+
+export function deleteCustomTemplate(id: string): boolean {
+  const beforeLen = (data.customTemplates || []).length
+  data.customTemplates = (data.customTemplates || []).filter((t) => t.id !== id)
+  saveToDisk()
+  return data.customTemplates.length < beforeLen
+}
+

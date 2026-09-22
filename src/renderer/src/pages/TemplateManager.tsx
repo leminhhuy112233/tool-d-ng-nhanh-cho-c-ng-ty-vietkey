@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../components/layout/PageHeader'
+import { TemplateUploadModal } from '../components/templates/TemplateUploadModal'
 import {
   FileText,
   FolderOpen,
@@ -16,8 +18,13 @@ import {
   FileCheck,
   Tag,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Trash2,
+  Play,
+  Upload
 } from 'lucide-react'
+import type { CustomTemplateDef } from '../../../shared/types'
 
 interface TemplateDef {
   id: string
@@ -152,14 +159,51 @@ const VARIABLES: VariableDef[] = [
 ]
 
 export function TemplateManager() {
+  const navigate = useNavigate()
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'contract' | 'quotation' | 'advance'>('all')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [copiedTag, setCopiedTag] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Custom Templates State
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplateDef[]>([])
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+
   const showToast = (type: 'success' | 'error', text: string) => {
     setToastMessage({ type, text })
     setTimeout(() => setToastMessage(null), 5000)
+  }
+
+  const loadCustomTemplates = async () => {
+    if (window.api?.getCustomTemplates) {
+      try {
+        const list = await window.api.getCustomTemplates()
+        setCustomTemplates(list || [])
+      } catch (err) {
+        console.error('Lỗi tải custom templates:', err)
+      }
+    }
+  }
+
+  useEffect(() => {
+    loadCustomTemplates()
+  }, [])
+
+  const handleDeleteCustomTemplate = async (id: string, name: string) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa mẫu tùy biến "${name}"?`)) return
+    try {
+      if (window.api?.deleteCustomTemplate) {
+        const res = await window.api.deleteCustomTemplate(id)
+        if (res.success) {
+          showToast('success', `Đã xóa mẫu "${name}" thành công!`)
+          loadCustomTemplates()
+        } else {
+          showToast('error', res.error || 'Lỗi khi xóa mẫu.')
+        }
+      }
+    } catch (err) {
+      showToast('error', 'Không thể xóa mẫu này.')
+    }
   }
 
   const handleCopyTag = (tag: string) => {
@@ -216,31 +260,54 @@ export function TemplateManager() {
     <div style={{ maxWidth: '1150px', margin: '0 auto', paddingBottom: '60px' }}>
       {/* Page Header */}
       <PageHeader
-        title="Quản Lý Template & Mã Biến"
-        description="Tra cứu các mã trường (tag), trực tiếp mở chỉnh sửa file Word (.docx) hoặc tùy biến văn bản theo ý muốn"
+        title="Quản Lý Template & Tạo Mẫu Tùy Biến"
+        description="Tra cứu mã trường (tag), mở trực tiếp file Word hoặc tải lên mẫu Word bôi đỏ để tự động tạo form bằng AI"
       >
-        <button
-          onClick={handleOpenTemplatesFolder}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 20px',
-            background: 'var(--primary)',
-            color: 'var(--primary-foreground)',
-            border: 'none',
-            borderRadius: '10px',
-            fontWeight: 700,
-            fontSize: '13.5px',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(178, 213, 229, 0.25)',
-            transition: 'all 0.2s ease'
-          }}
-          title="Mở thư mục chứa các file .docx trong Windows Explorer"
-        >
-          <FolderOpen size={16} />
-          Mở Thư Mục Template (Explorer)
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              background: 'var(--primary)',
+              color: 'var(--primary-foreground)',
+              border: 'none',
+              borderRadius: '10px',
+              fontWeight: 700,
+              fontSize: '13.5px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(59, 130, 246, 0.25)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Plus size={16} />
+            + Tải Lên Mẫu Word Mới
+          </button>
+
+          <button
+            onClick={handleOpenTemplatesFolder}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              background: 'var(--muted)',
+              color: 'var(--foreground)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Mở thư mục chứa các file .docx trong Windows Explorer"
+          >
+            <FolderOpen size={16} />
+            Thư Mục Template
+          </button>
+        </div>
       </PageHeader>
 
       {/* Category Tabs */}
@@ -278,6 +345,213 @@ export function TemplateManager() {
             {tab.label}
           </button>
         ))}
+      </div>
+
+      {/* Section 0: Custom User Templates */}
+      <div style={{ marginBottom: '36px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3
+            style={{
+              fontSize: '16px',
+              fontWeight: 700,
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <Sparkles size={18} color="var(--primary)" />
+            Mẫu Tùy Biến Của Tôi ({customTemplates.length})
+          </h3>
+
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              color: 'var(--primary)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            <Plus size={14} />
+            Thêm mẫu mới
+          </button>
+        </div>
+
+        {customTemplates.length === 0 ? (
+          <div
+            style={{
+              padding: '30px 20px',
+              background: 'var(--card)',
+              border: '1px dashed var(--border)',
+              borderRadius: '12px',
+              textAlign: 'center'
+            }}
+          >
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: 'rgba(59, 130, 246, 0.1)',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px'
+              }}
+            >
+              <Upload size={22} />
+            </div>
+            <h4 style={{ margin: '0 0 6px', fontSize: '14.5px', fontWeight: 600, color: 'var(--foreground)' }}>
+              Chưa có mẫu tùy biến nào
+            </h4>
+            <p style={{ margin: '0 0 16px', fontSize: '12.5px', color: 'var(--muted-foreground)', maxWidth: '500px', marginInline: 'auto' }}>
+              Bạn có thể lấy bất kỳ file Word thật nào của công ty, <strong>bôi chữ màu ĐỎ</strong> vào các chỗ cần thay đổi rồi tải lên. AI sẽ tự động tạo Form điền cho bạn trong tích tắc!
+            </p>
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 18px',
+                background: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={15} />
+              Tải lên mẫu Word ngay
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '18px'
+            }}
+          >
+            {customTemplates.map((tpl) => (
+              <div
+                key={tpl.id}
+                style={{
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '16px',
+                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--foreground)' }}>
+                      {tpl.name}
+                    </h4>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        padding: '3px 8px',
+                        borderRadius: '20px',
+                        fontWeight: 600,
+                        background: tpl.isFromRedHighlight ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                        color: tpl.isFromRedHighlight ? '#ef4444' : 'var(--primary)',
+                        border: `1px solid ${tpl.isFromRedHighlight ? 'rgba(239, 68, 68, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`
+                      }}
+                    >
+                      {tpl.isFromRedHighlight ? 'Bôi Đỏ AI' : 'Mẫu Tùy Biến'}
+                    </span>
+                  </div>
+
+                  <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 12px', lineHeight: '1.5' }}>
+                    {tpl.description || 'Mẫu văn bản được tải lên và phân tích tự động'}
+                  </p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11.5px', color: 'var(--muted-foreground)' }}>
+                    <span>📝 {tpl.fields.length} trường điền</span>
+                    <span>•</span>
+                    <span>📁 {tpl.fileName}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={() => navigate(`/custom-form/${tpl.id}`)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      background: 'var(--primary)',
+                      color: 'var(--primary-foreground)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Play size={14} />
+                    Điền & Xuất
+                  </button>
+
+                  <button
+                    onClick={() => window.api?.openPath(tpl.docxFilePath)}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'var(--muted)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      color: 'var(--foreground)',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Mở file Word gốc trong Word"
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteCustomTemplate(tpl.id, tpl.name)}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'var(--muted)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      color: 'var(--muted-foreground)',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Xóa mẫu này"
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Section 1: Template Cards Grid */}
@@ -637,6 +911,17 @@ export function TemplateManager() {
           <span style={{ fontWeight: 600 }}>{toastMessage.text}</span>
         </div>
       )}
+
+      {/* Upload Custom Template Modal */}
+      <TemplateUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onTemplateCreated={(newTpl) => {
+          loadCustomTemplates()
+          showToast('success', `Đã tạo mẫu thành công: "${newTpl.name}"!`)
+          navigate(`/custom-form/${newTpl.id}`)
+        }}
+      />
     </div>
   )
 }

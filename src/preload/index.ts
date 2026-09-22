@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
-import type { ElectronAPI, ContractData, QuotationData, AdvanceRequestData } from '../shared/types'
+import type { ElectronAPI, ContractData, QuotationData, AdvanceRequestData, CustomTemplateDef, ExportFileType } from '../shared/types'
 
 const api: ElectronAPI = {
   // Settings
@@ -63,6 +63,22 @@ const api: ElectronAPI = {
   // Template management
   openTemplatesFolder: () => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_LIST),
   openTemplateFile: (fileName: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_GET, fileName),
+
+  // Custom Dynamic Template Management (MỚI)
+  analyzeTemplate: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_ANALYZE, filePath),
+  getCustomTemplates: () => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_LIST),
+  saveCustomTemplate: (
+    template: Omit<CustomTemplateDef, 'id' | 'createdAt' | 'updatedAt'>,
+    processedDocxBase64?: string
+  ) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_SAVE, template, processedDocxBase64),
+  deleteCustomTemplate: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_DELETE, id),
+  getCustomTemplateById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_GET, id),
+  exportCustomDocument: (
+    templateId: string,
+    data: Record<string, any>,
+    targetPath: string,
+    exportType?: ExportFileType
+  ) => ipcRenderer.invoke(IPC_CHANNELS.DOCUMENT_EXPORT_CUSTOM, templateId, data, targetPath, exportType),
 
   // App info
   getAppVersion: () => '1.0.0'

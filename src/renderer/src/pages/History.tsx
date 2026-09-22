@@ -26,7 +26,7 @@ export function History() {
   const navigate = useNavigate()
   const [historyList, setHistoryList] = useState<ExportHistoryRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'contract' | 'quotation' | 'advance_request'>('all')
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'contract' | 'quotation' | 'advance_request' | 'custom'>('all')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -71,6 +71,16 @@ export function History() {
       }
       navigate('/advance-request')
       showToast('success', `Đã mở lại dữ liệu đề nghị tạm ứng "${record.fileName}" để chỉnh sửa tiếp!`)
+    } else if (record.docType === 'custom' && record.templateId) {
+      if (record.dataSnapshot) {
+        try {
+          localStorage.setItem(`vk_custom_draft_${record.templateId}`, JSON.stringify(record.dataSnapshot))
+        } catch (e) {
+          console.error(e)
+        }
+      }
+      navigate(`/custom-form/${record.templateId}`)
+      showToast('success', `Đã mở lại dữ liệu mẫu "${record.templateName || record.fileName}" để chỉnh sửa tiếp!`)
     }
   }
 
@@ -151,6 +161,7 @@ export function History() {
   const contractCount = historyList.filter((h) => h.docType === 'contract').length
   const quotationCount = historyList.filter((h) => h.docType === 'quotation').length
   const advanceCount = historyList.filter((h) => h.docType === 'advance_request').length
+  const customCount = historyList.filter((h) => h.docType === 'custom').length
 
   // Filtered list
   const filteredList = historyList.filter((item) => {
@@ -185,6 +196,13 @@ export function History() {
           color: '#f59e0b',
           bg: 'rgba(245, 158, 11, 0.12)',
           icon: <CreditCard size={13} color="#f59e0b" />
+        }
+      case 'custom':
+        return {
+          label: 'Mẫu Tùy Biến',
+          color: '#8b5cf6',
+          bg: 'rgba(139, 92, 246, 0.12)',
+          icon: <Sparkles size={13} color="#8b5cf6" />
         }
       default:
         return {
@@ -440,7 +458,8 @@ export function History() {
             { id: 'all', label: `Tất cả (${historyList.length})` },
             { id: 'contract', label: `Hợp đồng (${contractCount})` },
             { id: 'quotation', label: `Báo giá (${quotationCount})` },
-            { id: 'advance_request', label: `Tạm ứng (${advanceCount})` }
+            { id: 'advance_request', label: `Tạm ứng (${advanceCount})` },
+            { id: 'custom', label: `Mẫu tùy biến (${customCount})` }
           ].map((tab) => (
             <button
               key={tab.id}

@@ -10,6 +10,7 @@ import { AdvanceRequestForm } from './pages/AdvanceRequestForm'
 import { TemplateManager } from './pages/TemplateManager'
 import { Settings } from './pages/Settings'
 import { History } from './pages/History'
+import { DynamicForm } from './pages/DynamicForm'
 import { useThemeStore } from './stores/theme.store'
 import { playClickSound } from './lib/sound'
 
@@ -65,6 +66,14 @@ function AnimatedRoutes() {
             element={
               <PageTransition>
                 <TemplateManager />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/custom-form/:templateId"
+            element={
+              <PageTransition>
+                <DynamicForm />
               </PageTransition>
             }
           />

@@ -48,7 +48,15 @@ export const IPC_CHANNELS = {
   TEMPLATE_LIST: 'template:list',
   TEMPLATE_GET: 'template:get',
   TEMPLATE_IMPORT: 'template:import',
-  TEMPLATE_DELETE: 'template:delete'
+  TEMPLATE_DELETE: 'template:delete',
+
+  // Custom Dynamic Template & AI Red-Text Generator (MỚI)
+  TEMPLATE_ANALYZE: 'template:analyze',
+  TEMPLATE_CUSTOM_LIST: 'template:custom-list',
+  TEMPLATE_CUSTOM_SAVE: 'template:custom-save',
+  TEMPLATE_CUSTOM_DELETE: 'template:custom-delete',
+  TEMPLATE_CUSTOM_GET: 'template:custom-get',
+  DOCUMENT_EXPORT_CUSTOM: 'document:export-custom'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

@@ -210,3 +210,54 @@ export function generateAdvanceRequestDocx(
     }
   }
 }
+
+// ===== 4. Xuất Mẫu Tùy Biến (Custom Dynamic Template) =====
+export function generateCustomDocx(
+  templateFilePath: string,
+  data: Record<string, any>,
+  targetPath: string
+): { success: boolean; error?: string } {
+  try {
+    if (!existsSync(templateFilePath)) {
+      return { success: false, error: `Không tìm thấy file mẫu tại: ${templateFilePath}` }
+    }
+
+    const content = readFileSync(templateFilePath, 'binary')
+    const zip = new PizZip(content)
+
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true
+    })
+
+    // Tự động chuẩn hóa dữ liệu: nếu có mảng items thì format STT
+    const renderData: Record<string, any> = { ...data }
+    for (const key of Object.keys(renderData)) {
+      if (Array.isArray(renderData[key])) {
+        renderData[key] = renderData[key].map((item: any, idx: number) => {
+          if (typeof item === 'object' && item !== null) {
+            return {
+              stt: item.stt || String(idx + 1).padStart(2, '0'),
+              ...item
+            }
+          }
+          return item
+        })
+      }
+    }
+
+    doc.render(renderData)
+
+    const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
+    writeFileSync(targetPath, buf)
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('Lỗi xuất Word Mẫu Tùy Biến:', err)
+    return {
+      success: false,
+      error: err.message || 'Lỗi không xác định khi xuất file Word tùy biến.'
+    }
+  }
+}
+

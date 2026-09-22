@@ -2,7 +2,8 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { initStore, getPartners, savePartner, getHistory, addHistoryRecord, deleteHistoryRecord, clearHistory } from './services/database'
+import { initStore, getPartners, savePartner, getHistory, addHistoryRecord, deleteHistoryRecord, clearHistory, getCustomTemplates, getCustomTemplateById, saveCustomTemplate, deleteCustomTemplate } from './services/database'
+import { analyzeDocxTemplate } from './services/template-analyzer'
 import { registerSettingsHandlers } from './ipc/settings.ipc'
 import { registerDocumentHandlers } from './ipc/document.ipc'
 import { IPC_CHANNELS } from '../shared/ipc-channels'
@@ -136,6 +137,42 @@ function registerWindowHandlers(): void {
     const filePath = join(templateDir, fileName)
     if (existsSync(filePath)) {
       await shell.openPath(filePath)
+    }
+  })
+
+  // Custom Template Handlers
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_ANALYZE, async (_event, filePath: string) => {
+    return await analyzeDocxTemplate(filePath)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_CUSTOM_LIST, async () => {
+    return getCustomTemplates()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_CUSTOM_GET, async (_event, id: string) => {
+    return getCustomTemplateById(id)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.TEMPLATE_CUSTOM_SAVE,
+    async (_event, templateData: any, processedDocxBase64?: string) => {
+      try {
+        const saved = saveCustomTemplate(templateData, processedDocxBase64)
+        return { success: true, template: saved }
+      } catch (err: any) {
+        console.error('Lỗi lưu custom template:', err)
+        return { success: false, error: err.message || 'Lỗi không xác định khi lưu mẫu tùy biến.' }
+      }
+    }
+  )
+
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_CUSTOM_DELETE, async (_event, id: string) => {
+    try {
+      const ok = deleteCustomTemplate(id)
+      return { success: ok }
+    } catch (err: any) {
+      console.error('Lỗi xóa custom template:', err)
+      return { success: false, error: err.message || 'Lỗi không xác định khi xóa mẫu.' }
     }
   })
 }
