@@ -5,9 +5,24 @@
 
 import { create } from 'zustand'
 import type { PdfPageInfo } from '../../../shared/types'
+import { destroySharedPdfDoc } from '../utils/pdfConfig'
+import { useEditorObjectsStore } from './pdfEditorObjects.store'
 
 export type PdfViewMode = 'page' | 'thumbnail'
-export type PdfTool = 'select' | 'pan' | 'text' | 'signature' | 'image' | 'draw' | 'highlight' | 'stamp'
+export type PdfTool =
+  | 'select'
+  | 'pan'
+  | 'text'
+  | 'signature'
+  | 'image'
+  | 'draw'
+  | 'highlight'
+  | 'stamp'
+  | 'whiteout'
+  | 'shape'
+  | 'underline'
+  | 'strikeout'
+  | 'comment'
 export type PdfRibbonTab = 'home' | 'organize' | 'sign' | 'markup' | 'protect'
 export type PdfSidebarTab = 'thumbnails' | 'signatures' | 'info'
 
@@ -39,7 +54,9 @@ export interface PdfState {
 
   // Undo / Redo history
   undoStack: string[] // base64 snapshots
+  redoStack: string[]
   canUndo: boolean
+  canRedo: boolean
 
   // Actions
   loadPdf: (fileName: string, filePath: string | null, base64: string, pages: PdfPageInfo[], fileSize?: string) => void
@@ -65,11 +82,10 @@ export interface PdfState {
   setPanMode: (enabled: boolean) => void
   setActiveTool: (tool: PdfTool) => void
   setHasChanges: (hasChanges: boolean) => void
-
-  // PDF modification actions (update state after IPC call)
   updatePdfData: (base64: string, pages: PdfPageInfo[]) => void
   pushUndo: () => void
   undo: () => void
+  redo: () => void
 }
 
 export const usePdfStore = create<PdfState>((set, get) => ({
@@ -95,7 +111,9 @@ export const usePdfStore = create<PdfState>((set, get) => ({
   panMode: false,
   activeTool: 'select',
   undoStack: [],
+  redoStack: [],
   canUndo: false,
+  canRedo: false,
 
   // Actions
   loadPdf: (fileName, filePath, base64, pages, fileSize) => {
@@ -110,13 +128,19 @@ export const usePdfStore = create<PdfState>((set, get) => ({
       }
     }
 
+    const normalizedPages: PdfPageInfo[] = pages.map((p, idx) => ({
+      ...p,
+      index: idx,
+      id: p.id || `page_${idx}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    }))
+
     set({
       fileName,
       filePath,
       pdfBase64: base64,
       fileSize: calculatedSize,
-      pageCount: pages.length,
-      pages,
+      pageCount: normalizedPages.length,
+      pages: normalizedPages,
       isLoading: false,
       error: null,
       currentPage: 0,
@@ -130,7 +154,7 @@ export const usePdfStore = create<PdfState>((set, get) => ({
 
   closePdf: () => {
     try {
-      import('../utils/pdfConfig').then((m) => m.destroySharedPdfDoc?.())
+      destroySharedPdfDoc()
     } catch {}
     set({
       fileName: null,
@@ -214,34 +238,69 @@ export const usePdfStore = create<PdfState>((set, get) => ({
   setActiveTool: (tool) => set({ activeTool: tool, panMode: tool === 'pan' }),
   setHasChanges: (hasChanges) => set({ hasChanges }),
 
-  updatePdfData: (base64, pages) =>
+  updatePdfData: (base64, pages) => {
+    const prevPages = get().pages
+    const normalizedPages: PdfPageInfo[] = pages.map((p, idx) => {
+      const existing = prevPages[idx]
+      return {
+        ...p,
+        index: idx,
+        id: p.id || existing?.id || `page_${idx}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+      }
+    })
+
     set({
       pdfBase64: base64,
-      pageCount: pages.length,
-      pages,
-      currentPage: Math.min(get().currentPage, pages.length - 1),
+      pageCount: normalizedPages.length,
+      pages: normalizedPages,
+      currentPage: Math.min(get().currentPage, Math.max(0, normalizedPages.length - 1)),
       selectedPages: [],
       hasChanges: true
-    }),
+    })
+
+    try {
+      useEditorObjectsStore.getState().remapPageIndices(normalizedPages)
+    } catch {}
+  },
 
   pushUndo: () => {
     const { pdfBase64, undoStack } = get()
     if (pdfBase64) {
-      const newStack = [...undoStack, pdfBase64].slice(-10)
-      set({ undoStack: newStack, canUndo: true })
+      const newStack = [...undoStack, pdfBase64].slice(-15)
+      set({ undoStack: newStack, canUndo: true, redoStack: [], canRedo: false })
     }
   },
 
   undo: () => {
-    const { undoStack } = get()
+    const { undoStack, redoStack, pdfBase64 } = get()
     if (undoStack.length === 0) return
 
-    const newStack = [...undoStack]
-    const previousBase64 = newStack.pop()!
+    const newUndoStack = [...undoStack]
+    const previousBase64 = newUndoStack.pop()!
+    const newRedoStack = pdfBase64 ? [...redoStack, pdfBase64] : redoStack
     set({
       pdfBase64: previousBase64,
-      undoStack: newStack,
-      canUndo: newStack.length > 0,
+      undoStack: newUndoStack,
+      redoStack: newRedoStack,
+      canUndo: newUndoStack.length > 0,
+      canRedo: newRedoStack.length > 0,
+      hasChanges: true
+    })
+  },
+
+  redo: () => {
+    const { undoStack, redoStack, pdfBase64 } = get()
+    if (redoStack.length === 0) return
+
+    const newRedoStack = [...redoStack]
+    const nextBase64 = newRedoStack.pop()!
+    const newUndoStack = pdfBase64 ? [...undoStack, pdfBase64] : undoStack
+    set({
+      pdfBase64: nextBase64,
+      undoStack: newUndoStack,
+      redoStack: newRedoStack,
+      canUndo: newUndoStack.length > 0,
+      canRedo: newRedoStack.length > 0,
       hasChanges: true
     })
   }

@@ -107,6 +107,27 @@ const api: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.PDF_ADD_WATERMARK, pdfBase64, options),
   pdfImagesToPdf: (images: { base64: string; type?: 'png' | 'jpg' }[]) =>
     ipcRenderer.invoke(IPC_CHANNELS.PDF_IMAGES_TO_PDF, images),
+  pdfAddBlankPage: (pdfBase64: string, position: 'before' | 'after' | 'end', targetIndex: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_ADD_BLANK_PAGE, pdfBase64, position, targetIndex),
+  pdfImportPages: (
+    targetBase64: string,
+    sourceBytesArr: number[],
+    position: 'before' | 'after' | 'end',
+    targetIndex: number,
+    pageIndices?: number[]
+  ) =>
+    ipcRenderer.invoke(
+      IPC_CHANNELS.PDF_IMPORT_PAGES,
+      targetBase64,
+      sourceBytesArr,
+      position,
+      targetIndex,
+      pageIndices
+    ),
+  pdfCompress: (pdfBase64: string, level: 'low' | 'medium' | 'high') =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_COMPRESS, pdfBase64, level),
+  pdfUpdateMetadata: (pdfBase64: string, metadata: any) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PDF_UPDATE_METADATA, pdfBase64, metadata),
 
   // Local Storage Hub (MỚI)
   storageGetInfo: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_GET_INFO),

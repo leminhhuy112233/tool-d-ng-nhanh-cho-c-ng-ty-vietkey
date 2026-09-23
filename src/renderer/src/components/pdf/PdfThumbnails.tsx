@@ -18,24 +18,28 @@ import {
   FileText,
   Layers,
   Info,
-  ExternalLink
+  ExternalLink,
+  Search,
+  MoreVertical,
+  Copy
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePdfStore } from '../../stores/pdfTools.store'
 import { PdfContextMenu } from './PdfContextMenu'
 import { pdfjsLib, getSharedPdfDoc } from '../../utils/pdfConfig'
 
-const SIDEBAR_THUMB_SCALE = 0.35
-const GRID_THUMB_SCALE = 0.55
+const SIDEBAR_THUMB_SCALE = 0.15
+const GRID_THUMB_SCALE = 0.25
 
 // ===== 1. SIDEBAR THUMBNAILS & DRAWER =====
 interface SidebarProps {
   onDeletePage?: (index: number) => void
   onRotatePage?: (index: number, degrees: number) => void
   onExtractPage?: (index: number) => void
+  onDuplicatePage?: (index: number) => void
 }
 
-export function PdfSidebarThumbnails({ onDeletePage, onRotatePage, onExtractPage }: SidebarProps) {
+export function PdfSidebarThumbnails({ onDeletePage, onRotatePage, onExtractPage, onDuplicatePage }: SidebarProps) {
   const {
     pdfBase64,
     pageCount,
@@ -67,6 +71,15 @@ export function PdfSidebarThumbnails({ onDeletePage, onRotatePage, onExtractPage
   } | null>(null)
 
   const [thumbDocReady, setThumbDocReady] = useState(0)
+  const [pageFilter, setPageFilter] = useState('')
+  const [activeCardMenu, setActiveCardMenu] = useState<number | null>(null)
+
+  // Đóng menu card khi click ra ngoài
+  useEffect(() => {
+    const handleGlobalClick = () => setActiveCardMenu(null)
+    window.addEventListener('click', handleGlobalClick)
+    return () => window.removeEventListener('click', handleGlobalClick)
+  }, [])
 
   // Load PDF document qua Shared Cache
   useEffect(() => {
@@ -258,84 +271,244 @@ export function PdfSidebarThumbnails({ onDeletePage, onRotatePage, onExtractPage
 
       {/* Tab 1: Danh sách Thumbnail */}
       {sidebarTab === 'thumbnails' && (
-        <div ref={scrollContainerRef} className="pdf-sidebar-scroll">
-          {Array.from({ length: pageCount }, (_, i) => {
-            const isCurrent = currentPage === i
-            const isSelected = selectedPages.includes(i)
-            const isDropTarget = dragOver === i
-
-            return (
-              <div
-                key={i}
-                data-thumb-index={i}
-                className={`pdf-thumb-card ${isCurrent ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isDropTarget ? 'drag-over' : ''}`}
-                onClick={() => setCurrentPage(i)}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  setContextMenu({ x: e.clientX, y: e.clientY, pageIndex: i })
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+          {/* Ô tìm kiếm / nhảy trang nhanh */}
+          <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Search size={13} style={{ position: 'absolute', left: '8px', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Đi đến trang... (VD: 5)"
+                value={pageFilter}
+                onChange={(e) => {
+                  setPageFilter(e.target.value)
+                  const num = parseInt(e.target.value, 10)
+                  if (!isNaN(num) && num >= 1 && num <= pageCount) {
+                    setCurrentPage(num - 1)
+                  }
                 }}
-                draggable
-                onDragStart={(e) => handleDragStart(e, i)}
-                onDragOver={(e) => handleDragOver(e, i)}
-                onDrop={(e) => handleDrop(e, i)}
-                onDragLeave={() => setDragOver(null)}
-              >
-                {/* Header card: Checkbox + Grip */}
-                <div className="pdf-thumb-header">
-                  <div
-                    className={`pdf-thumb-checkbox ${isSelected ? 'checked' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      togglePageSelect(i)
-                    }}
-                    title={isSelected ? 'Hủy chọn trang' : 'Chọn trang này'}
-                  >
-                    {isSelected && <Check size={11} color="white" />}
-                  </div>
+                style={{
+                  width: '100%',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '6px',
+                  padding: '5px 8px 5px 28px',
+                  fontSize: '12px',
+                  color: '#f8fafc',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          </div>
 
-                  <span className="pdf-thumb-num">Trang {i + 1}</span>
+          <div ref={scrollContainerRef} className="pdf-sidebar-scroll" style={{ flex: 1, overflowY: 'auto' }}>
+            {Array.from({ length: pageCount }, (_, i) => {
+              const isCurrent = currentPage === i
+              const isSelected = selectedPages.includes(i)
+              const isDropTarget = dragOver === i
 
-                  <div className="pdf-thumb-drag-handle" title="Kéo để đổi vị trí">
-                    <GripVertical size={13} />
-                  </div>
-                </div>
-
-                {/* Canvas Render */}
-                <div className="pdf-thumb-canvas-wrapper">
-                  <canvas
-                    ref={(el) => {
-                      if (el) canvasRefs.current.set(i, el)
-                    }}
-                    className="pdf-thumb-canvas"
-                  />
-
-                  {/* Nút hành động nổi trên thumbnail khi rê chuột */}
-                  <div className="pdf-thumb-hover-actions">
-                    <button
-                      className="pdf-thumb-mini-btn"
+              return (
+                <div
+                  key={i}
+                  data-thumb-index={i}
+                  className={`pdf-thumb-card ${isCurrent ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isDropTarget ? 'drag-over' : ''}`}
+                  onClick={() => setCurrentPage(i)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setContextMenu({ x: e.clientX, y: e.clientY, pageIndex: i })
+                  }}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, i)}
+                  onDragOver={(e) => handleDragOver(e, i)}
+                  onDrop={(e) => handleDrop(e, i)}
+                  onDragLeave={() => setDragOver(null)}
+                  style={{ position: 'relative' }}
+                >
+                  {/* Header card: Checkbox + Grip */}
+                  <div className="pdf-thumb-header">
+                    <div
+                      className={`pdf-thumb-checkbox ${isSelected ? 'checked' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (onRotatePage) onRotatePage(i, 90)
+                        togglePageSelect(i)
                       }}
-                      title="Xoay 90°"
+                      title={isSelected ? 'Hủy chọn trang' : 'Chọn trang này'}
                     >
-                      <RotateCw size={12} />
-                    </button>
-                    <button
-                      className="pdf-thumb-mini-btn danger"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (onDeletePage) onDeletePage(i)
+                      {isSelected && <Check size={11} color="white" />}
+                    </div>
+
+                    <span className="pdf-thumb-num">Trang {i + 1}</span>
+
+                    <div className="pdf-thumb-drag-handle" title="Kéo để đổi vị trí">
+                      <GripVertical size={13} />
+                    </div>
+                  </div>
+
+                  {/* Canvas Render */}
+                  <div className="pdf-thumb-canvas-wrapper">
+                    <canvas
+                      ref={(el) => {
+                        if (el) canvasRefs.current.set(i, el)
                       }}
-                      title="Xóa trang này"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                      className="pdf-thumb-canvas"
+                    />
+
+                    {/* Nút hành động nổi trên thumbnail khi rê chuột */}
+                    <div className="pdf-thumb-hover-actions">
+                      <button
+                        className="pdf-thumb-mini-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (onRotatePage) onRotatePage(i, 90)
+                        }}
+                        title="Xoay 90°"
+                      >
+                        <RotateCw size={12} />
+                      </button>
+                      <button
+                        className="pdf-thumb-mini-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (onDuplicatePage) onDuplicatePage(i)
+                        }}
+                        title="Nhân bản trang"
+                      >
+                        <Copy size={12} />
+                      </button>
+                      <button
+                        className="pdf-thumb-mini-btn danger"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (onDeletePage) onDeletePage(i)
+                        }}
+                        title="Xóa trang này"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                      <button
+                        className="pdf-thumb-mini-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveCardMenu(activeCardMenu === i ? null : i)
+                        }}
+                        title="Tùy chọn khác"
+                      >
+                        <MoreVertical size={12} />
+                      </button>
+                    </div>
+
+                    {/* Menu xổ xuống khi click ⋮ */}
+                    {activeCardMenu === i && (
+                      <div
+                        className="pdf-thumb-card-dropdown"
+                        style={{
+                          position: 'absolute',
+                          right: 8,
+                          bottom: 8,
+                          background: '#0f172a',
+                          border: '1px solid rgba(255,255,255,0.12)',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                          zIndex: 40,
+                          padding: '4px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          minWidth: '130px'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            fontSize: '11px',
+                            color: '#e2e8f0',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            textAlign: 'left'
+                          }}
+                          onClick={() => {
+                            onRotatePage?.(i, 90)
+                            setActiveCardMenu(null)
+                          }}
+                        >
+                          <RotateCw size={12} /> Xoay 90°
+                        </button>
+                        <button
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            fontSize: '11px',
+                            color: '#e2e8f0',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            textAlign: 'left'
+                          }}
+                          onClick={() => {
+                            onDuplicatePage?.(i)
+                            setActiveCardMenu(null)
+                          }}
+                        >
+                          <Copy size={12} /> Nhân bản trang
+                        </button>
+                        <button
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            fontSize: '11px',
+                            color: '#e2e8f0',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            textAlign: 'left'
+                          }}
+                          onClick={() => {
+                            onExtractPage?.(i)
+                            setActiveCardMenu(null)
+                          }}
+                        >
+                          <Download size={12} /> Trích xuất trang
+                        </button>
+                        <button
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            fontSize: '11px',
+                            color: '#f87171',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            textAlign: 'left'
+                          }}
+                          onClick={() => {
+                            onDeletePage?.(i)
+                            setActiveCardMenu(null)
+                          }}
+                        >
+                          <Trash2 size={12} /> Xóa trang
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       )}
 

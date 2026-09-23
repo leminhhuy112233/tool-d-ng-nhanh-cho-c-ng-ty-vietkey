@@ -74,6 +74,10 @@ export const IPC_CHANNELS = {
   PDF_ENCRYPT: 'pdf:encrypt',
   PDF_TO_IMAGES: 'pdf:to-images',
   PDF_IMAGES_TO_PDF: 'pdf:images-to-pdf',
+  PDF_ADD_BLANK_PAGE: 'pdf:add-blank-page',
+  PDF_IMPORT_PAGES: 'pdf:import-pages',
+  PDF_COMPRESS: 'pdf:compress',
+  PDF_UPDATE_METADATA: 'pdf:update-metadata',
 
   // Local Storage Hub (MỚI)
   STORAGE_GET_INFO: 'storage:get-info',

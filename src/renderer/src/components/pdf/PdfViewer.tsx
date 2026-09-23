@@ -1,19 +1,26 @@
 /**
- * PdfViewer — Render PDF pages bằng pdfjs-dist trên canvas với giao diện Studio
- * Đổ bóng đa tầng (ambient paper shadow), badge số trang nổi, chế độ Bàn tay kéo cuộn (Pan mode),
- * và Context Menu chuột phải trên trang.
- *
- * FIX: Sử dụng pdfDocReady counter state để đảm bảo render được kích hoạt
- *      sau khi PDF document hoàn tất việc giải mã (async), giải quyết race condition
- *      khi file lớn từ Electron IPC cần nhiều thời gian decode.
+ * PdfViewer — Hệ thống Studio Canvas hiển thị PDF hiệu năng cao (Anti-Lag Virtualization)
+ * Tích hợp:
+ * - Động cơ ảo hóa (VirtualScrollEngine) với Binary Search O(log N) cho trang đa kích thước
+ * - Hàng đợi render ưu tiên (RenderQueue) tự động HỦY các tác vụ của trang trôi ra khỏi màn hình
+ * - Quản lý ngân sách RAM qua LRU Cache (RenderCache) dọn sạch VRAM trang xa
+ * - Tách riêng lớp PDF Canvas và Editor Overlay
+ * - Kéo thả đối tượng 60 FPS sử dụng phần cứng GPU CSS Translate3D
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Trash2, Move, Sparkles } from 'lucide-react'
 import { usePdfStore } from '../../stores/pdfTools.store'
 import { PdfContextMenu } from './PdfContextMenu'
+import { PdfContextualToolbar } from './PdfContextualToolbar'
+import { EditorObjectOverlay } from './objects/EditorObjectOverlay'
+import { useEditorObjectsStore } from '../../stores/pdfEditorObjects.store'
 import { pdfjsLib, getSharedPdfDoc } from '../../utils/pdfConfig'
+import { PageLayoutManager } from '../../core/virtualization/PageLayoutManager'
+import { computeVisibleRange, VisibleRange } from '../../core/virtualization/VirtualScrollEngine'
+import { RenderManager } from '../../core/render/RenderManager'
+import { RenderPriority } from '../../core/render/RenderQueue'
 
 export interface ActiveAnnotation {
   id: string
@@ -40,6 +47,9 @@ interface PdfViewerProps {
   onApplyAnnotation?: (ann: ActiveAnnotation) => void
 }
 
+// Singleton RenderManager duy nhất cho PdfViewer
+const renderManager = new RenderManager(7, 2)
+
 export function PdfViewer({
   className,
   onRotatePages,
@@ -62,113 +72,23 @@ export function PdfViewer({
 
   const containerRef = useRef<HTMLDivElement>(null)
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null)
-  // Quản lý RenderTask dở dang và tỉ lệ scale đã render của từng trang
-  const renderTasksRef = useRef<Map<number, any>>(new Map())
-  const renderedScaleRef = useRef<Map<number, number>>(new Map())
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map())
+  const annotationDomRef = useRef<HTMLDivElement>(null)
 
-  // Counter tăng mỗi khi PDF doc tải xong → kích hoạt re-render effect
-  const [pdfDocReady, setPdfDocReady] = useState(0)
+  // Khởi tạo PageLayoutManager tính toán kích thước động
+  const layoutManager = useMemo(() => {
+    const mgr = new PageLayoutManager(24)
+    mgr.computeLayouts(pages, zoomLevel)
+    return mgr
+  }, [pages, zoomLevel])
 
-  // Dragging & Resizing active annotation
-  const [dragState, setDragState] = useState<{
-    isDragging: boolean
-    isResizing: string | null
-    startX: number
-    startY: number
-    initX: number
-    initY: number
-    initW: number
-    initH: number
-  } | null>(null)
-
-  const handleAnnMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!activeAnnotation) return
-    setDragState({
-      isDragging: true,
-      isResizing: null,
-      startX: e.clientX,
-      startY: e.clientY,
-      initX: activeAnnotation.x,
-      initY: activeAnnotation.y,
-      initW: activeAnnotation.width,
-      initH: activeAnnotation.height
-    })
-  }
-
-  const handleResizeStart = (e: React.MouseEvent, handle: string) => {
-    e.stopPropagation()
-    if (!activeAnnotation) return
-    setDragState({
-      isDragging: false,
-      isResizing: handle,
-      startX: e.clientX,
-      startY: e.clientY,
-      initX: activeAnnotation.x,
-      initY: activeAnnotation.y,
-      initW: activeAnnotation.width,
-      initH: activeAnnotation.height
-    })
-  }
-
-  useEffect(() => {
-    if (!dragState || !activeAnnotation) return
-
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragState.startX
-      const dy = e.clientY - dragState.startY
-
-      if (dragState.isDragging) {
-        onUpdateAnnotation?.({
-          ...activeAnnotation,
-          x: Math.max(0, dragState.initX + dx),
-          y: Math.max(0, dragState.initY + dy)
-        })
-      } else if (dragState.isResizing) {
-        let newW = dragState.initW
-        let newH = dragState.initH
-        let newX = dragState.initX
-        let newY = dragState.initY
-
-        if (dragState.isResizing.includes('e')) {
-          newW = Math.max(40, dragState.initW + dx)
-        }
-        if (dragState.isResizing.includes('s')) {
-          newH = Math.max(20, dragState.initH + dy)
-        }
-        if (dragState.isResizing.includes('w')) {
-          const diff = Math.min(dx, dragState.initW - 40)
-          newW = dragState.initW - diff
-          newX = dragState.initX + diff
-        }
-        if (dragState.isResizing.includes('n')) {
-          const diff = Math.min(dy, dragState.initH - 20)
-          newH = dragState.initH - diff
-          newY = dragState.initY + diff
-        }
-
-        onUpdateAnnotation?.({
-          ...activeAnnotation,
-          x: Math.max(0, newX),
-          y: Math.max(0, newY),
-          width: newW,
-          height: newH
-        })
-      }
-    }
-
-    const handleGlobalMouseUp = () => {
-      setDragState(null)
-    }
-
-    window.addEventListener('mousemove', handleGlobalMouseMove)
-    window.addEventListener('mouseup', handleGlobalMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove)
-      window.removeEventListener('mouseup', handleGlobalMouseUp)
-    }
-  }, [dragState, activeAnnotation, onUpdateAnnotation])
+  // Trạng thái dải trang hiển thị (Virtual Windowing)
+  const [visibleRange, setVisibleRange] = useState<VisibleRange>({
+    startIndex: 0,
+    endIndex: Math.min(2, Math.max(0, pageCount - 1)),
+    visibleIndices: Array.from({ length: Math.min(3, pageCount) }, (_, i) => i),
+    currentVisiblePage: 0
+  })
 
   // Pan / Hand Tool State
   const [isPanning, setIsPanning] = useState(false)
@@ -186,175 +106,155 @@ export function PdfViewer({
     pageIndex: number
   } | null>(null)
 
-  // ===== 1. Load PDF document qua Shared Cache =====
+  // 1. Tải và đồng bộ PDF Document Proxy
   useEffect(() => {
     if (!pdfBase64) {
       pdfDocRef.current = null
-      renderTasksRef.current.forEach((t) => {
-        try { t.cancel?.() } catch {}
-      })
-      renderTasksRef.current.clear()
-      renderedScaleRef.current.clear()
+      renderManager.clear()
+      canvasRefs.current.clear()
       return
     }
 
     let cancelled = false
-
-    const loadPdf = async () => {
+    const load = async () => {
       try {
-        // Hủy bỏ các render task cũ
-        renderTasksRef.current.forEach((t) => {
-          try { t.cancel?.() } catch {}
-        })
-        renderTasksRef.current.clear()
-        renderedScaleRef.current.clear()
-
         const pdfDoc = await getSharedPdfDoc(pdfBase64)
         if (cancelled) return
-
         pdfDocRef.current = pdfDoc
-        // Kích hoạt re-render bằng cách tăng counter
-        setPdfDocReady((c) => c + 1)
+        renderManager.setDocument(pdfDoc)
+        // Trigger lại tính toán cửa sổ hiển thị
+        updateVirtualWindow()
       } catch (err) {
-        console.error('Lỗi load PDF document:', err)
+        console.error('Lỗi nạp PDF document cho PdfViewer:', err)
       }
     }
 
-    loadPdf()
-
+    load()
     return () => {
       cancelled = true
-      renderTasksRef.current.forEach((t) => {
-        try { t.cancel?.() } catch {}
-      })
-      renderTasksRef.current.clear()
     }
   }, [pdfBase64])
 
-  // Xóa cache scale khi thay đổi zoomLevel để vẽ lại theo độ phóng mới
-  useEffect(() => {
-    renderedScaleRef.current.clear()
-  }, [zoomLevel])
+  // 2. Tính toán dải trang hiển thị với requestAnimationFrame throttle
+  const updateVirtualWindow = useCallback(() => {
+    if (!containerRef.current) return
+    const scrollTop = containerRef.current.scrollTop
+    const viewportHeight = containerRef.current.clientHeight || 800
 
-  // ===== 2. Render a single page onto its canvas với Hủy Task dở dang & Cache Zoom =====
-  const renderPage = useCallback(
-    async (pageIndex: number) => {
-      const pdfDoc = pdfDocRef.current
-      if (!pdfDoc) return
-      if (pageIndex < 0 || pageIndex >= pageCount) return
-
-      const targetScale = zoomLevel / 100
-      // Bỏ qua nếu trang này đã vẽ xong ở đúng tỉ lệ zoom hiện tại
-      if (renderedScaleRef.current.get(pageIndex) === targetScale) {
-        return
-      }
-
-      let canvas = canvasRefs.current.get(pageIndex)
-      if (!canvas) {
-        await new Promise((resolve) => setTimeout(resolve, 40))
-        canvas = canvasRefs.current.get(pageIndex)
-      }
-      if (!canvas) return
-
-      // Hủy renderTask dở dang trước đó nếu có cho trang này
-      const activeTask = renderTasksRef.current.get(pageIndex)
-      if (activeTask) {
-        try {
-          activeTask.cancel()
-        } catch {}
-        renderTasksRef.current.delete(pageIndex)
-      }
-
-      try {
-        const page = await pdfDoc.getPage(pageIndex + 1)
-        // Giới hạn max DPR = 1.5 để ngăn ngừa bùng nổ GPU VRAM trên màn hình 2K/4K/Retina
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
-        const viewport = page.getViewport({ scale: targetScale * dpr })
-
-        canvas.width = viewport.width
-        canvas.height = viewport.height
-        canvas.style.width = `${viewport.width / dpr}px`
-        canvas.style.height = `${viewport.height / dpr}px`
-
-        const ctx = canvas.getContext('2d', { alpha: false })
-        if (!ctx) return
-
-        const renderTask = page.render({
-          canvasContext: ctx,
-          viewport
-        })
-        renderTasksRef.current.set(pageIndex, renderTask)
-
-        await renderTask.promise
-        renderedScaleRef.current.set(pageIndex, targetScale)
-      } catch (err: any) {
-        if (err?.name !== 'RenderingCancelledException') {
-          console.error(`Lỗi render trang ${pageIndex + 1}:`, err)
-        }
-      } finally {
-        renderTasksRef.current.delete(pageIndex)
-      }
-    },
-    [zoomLevel, pageCount]
-  )
-
-  // ===== 3. Trigger rendering ưu tiên trang hiện tại + trang lân cận =====
-  useEffect(() => {
-    if (!pdfDocRef.current || !pdfBase64 || pageCount === 0) return
-
-    // Render trang hiện tại ngay lập tức, các trang kề bên sau 50ms
-    renderPage(currentPage)
-    const timer = setTimeout(() => {
-      if (currentPage > 0) renderPage(currentPage - 1)
-      if (currentPage < pageCount - 1) renderPage(currentPage + 1)
-    }, 50)
-
-    return () => clearTimeout(timer)
-  }, [pdfBase64, pdfDocReady, zoomLevel, currentPage, viewMode, pageCount, renderPage])
-
-  // ===== 4. IntersectionObserver cho lazy rendering (chỉ render trang trong viewport) =====
-  useEffect(() => {
-    if (viewMode !== 'page' || !containerRef.current || !pdfDocRef.current) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const idx = Number((entry.target as HTMLElement).dataset.pageIndex)
-            if (!isNaN(idx)) {
-              renderPage(idx)
-            }
-          }
-        })
-      },
-      { root: containerRef.current, rootMargin: '200px 0px', threshold: 0.05 }
+    const range = computeVisibleRange(
+      layoutManager.getOffsets(),
+      layoutManager.getAllLayouts(),
+      scrollTop,
+      viewportHeight,
+      1, // Overscan trước 1 trang
+      2  // Overscan sau 2 trang
     )
 
-    const pageElements = containerRef.current.querySelectorAll('[data-page-index]')
-    pageElements.forEach((el) => observer.observe(el))
+    setVisibleRange(range)
 
-    return () => observer.disconnect()
-  }, [viewMode, pageCount, pdfDocReady, renderPage])
-
-  // ===== 5. Scroll đến trang hiện tại khi thay đổi =====
-  useEffect(() => {
-    if (viewMode !== 'page') return
-    const pageEl = containerRef.current?.querySelector(`[data-page-index="${currentPage}"]`)
-    if (pageEl) {
-      pageEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // Cập nhật trang hiện tại nếu khác
+    if (range.currentVisiblePage !== currentPage && range.currentVisiblePage < pageCount) {
+      setCurrentPage(range.currentVisiblePage)
     }
-  }, [currentPage, viewMode])
 
-  // Set canvas ref
-  const setCanvasRef = useCallback((pageIndex: number, el: HTMLCanvasElement | null) => {
-    if (el) {
-      canvasRefs.current.set(pageIndex, el)
-    } else {
-      canvasRefs.current.delete(pageIndex)
+    // Thông báo cho RenderManager hủy ngay lập tức các job ngoài cửa sổ
+    const activeSet = new Set(range.visibleIndices)
+    renderManager.updateVisibleWindow(activeSet)
+    renderManager.getCache().retainOnly(activeSet)
+  }, [layoutManager, currentPage, pageCount, setCurrentPage])
+
+  // Lắng nghe sự kiện cuộn với rAF (tối đa 1 lần xử lý per frame)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let ticking = false
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateVirtualWindow()
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        const delta = e.deltaY < 0 ? 10 : -10
+        const currentZoom = usePdfStore.getState().zoomLevel
+        const newZoom = Math.min(400, Math.max(25, currentZoom + delta))
+        usePdfStore.getState().setZoomLevel(newZoom)
+      }
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    // Tính toán ban đầu
+    updateVirtualWindow()
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      container.removeEventListener('wheel', handleWheel)
+    }
+  }, [updateVirtualWindow])
+
+  // Lắng nghe phím Space để tạm thời kích hoạt Pan Hand tool
+  useEffect(() => {
+    let wasPan = false
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+        if (!usePdfStore.getState().panMode) {
+          wasPan = true
+          usePdfStore.getState().setPanMode(true)
+        }
+      }
+    }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && wasPan) {
+        usePdfStore.getState().setPanMode(false)
+        wasPan = false
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
     }
   }, [])
 
-  // ===== Pan Mode (Bàn tay kéo cuộn chuột) =====
+  // 3. Render các trang trong visibleRange bằng RenderManager
+  useEffect(() => {
+    if (!pdfDocRef.current || visibleRange.visibleIndices.length === 0) return
+
+    const scale = zoomLevel / 100
+
+    for (const idx of visibleRange.visibleIndices) {
+      const canvas = canvasRefs.current.get(idx)
+      if (canvas) {
+        // Trang hiện tại có độ ưu tiên cao nhất (100), các trang khác trong cửa sổ (80)
+        const priority = idx === currentPage ? RenderPriority.CURRENT : RenderPriority.VISIBLE
+        renderManager.requestRender(idx, scale, canvas, priority)
+      }
+    }
+  }, [visibleRange, zoomLevel, currentPage])
+
+  // 4. Scroll đến trang được chỉ định từ HUD / Sidebar
+  useEffect(() => {
+    if (viewMode !== 'page' || !containerRef.current) return
+    const layout = layoutManager.getLayout(currentPage)
+    if (layout) {
+      const targetScroll = layout.offsetTop - 12
+      // Chỉ cuộn nếu chênh lệch đáng kể (tránh giật cuộn vòng lặp)
+      if (Math.abs(containerRef.current.scrollTop - targetScroll) > 100) {
+        containerRef.current.scrollTo({ top: targetScroll, behavior: 'smooth' })
+      }
+    }
+  }, [currentPage, viewMode, layoutManager])
+
+  // 5. Pan / Hand Mode
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!panMode || !containerRef.current) return
     setIsPanning(true)
@@ -378,155 +278,121 @@ export function PdfViewer({
     if (isPanning) setIsPanning(false)
   }
 
+  // Context Menu
+  const handleContextMenu = (e: React.MouseEvent, pageIndex: number) => {
+    e.preventDefault()
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      pageIndex
+    })
+  }
+
+  const setCanvasRef = useCallback((idx: number, el: HTMLCanvasElement | null) => {
+    if (el) {
+      canvasRefs.current.set(idx, el)
+      // Khi canvas mount: yêu cầu render ngay
+      const scale = zoomLevel / 100
+      renderManager.requestRender(idx, scale, el, idx === currentPage ? RenderPriority.CURRENT : RenderPriority.VISIBLE)
+    } else {
+      canvasRefs.current.delete(idx)
+    }
+  }, [zoomLevel, currentPage])
+
   if (!pdfBase64 || pageCount === 0) return null
 
-  if (viewMode === 'page') {
-    return (
+  const totalContentHeight = layoutManager.getTotalHeight()
+  const maxContentWidth = layoutManager.getMaxWidth()
+
+  return (
+    <div
+      ref={containerRef}
+      className={`pdf-viewer-area ${panMode ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''} ${className || ''}`}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      style={{ overflowY: 'auto', position: 'relative', padding: '32px 0' }}
+    >
+      {/* Container tổng chứa chiều cao thật của cả tài liệu */}
       <div
-        ref={containerRef}
-        className={`pdf-viewer-area ${panMode ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''} ${className || ''}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        className="pdf-viewer-inner"
+        style={{
+          position: 'relative',
+          height: `${totalContentHeight + 64}px`,
+          width: '100%',
+          minWidth: `${maxContentWidth + 64}px`
+        }}
       >
-        <div className="pdf-viewer-inner">
-          {Array.from({ length: pageCount }, (_, i) => {
-            const pageInfo = pages[i]
-            const baseW = pageInfo?.width || 595
-            const baseH = pageInfo?.height || 842
-            const isRotated = (pageInfo?.rotation || 0) % 180 !== 0
-            const actualW = isRotated ? baseH : baseW
-            const actualH = isRotated ? baseW : baseH
-            const scale = zoomLevel / 100
-            const displayW = Math.round(actualW * scale)
-            const displayH = Math.round(actualH * scale)
+        {/* Chỉ render các trang nằm trong cửa sổ hiển thị (Virtual Range) */}
+        {visibleRange.visibleIndices.map((i) => {
+          const layout = layoutManager.getLayout(i)
+          if (!layout) return null
 
-            return (
-              <motion.div
-                key={i}
-                className={`pdf-page-container ${currentPage === i ? 'current-page-focus' : ''}`}
-                data-page-index={i}
-                style={{
-                  width: `${displayW}px`,
-                  minHeight: `${displayH}px`,
-                  aspectRatio: `${actualW} / ${actualH}`
-                }}
-                onClick={() => {
-                  setCurrentPage(i)
-                  if (activeAnnotation && activeAnnotation.pageIndex !== i) {
-                    onUpdateAnnotation?.({
-                      ...activeAnnotation,
-                      pageIndex: i
-                    })
-                  }
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  setContextMenu({ x: e.clientX, y: e.clientY, pageIndex: i })
-                }}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-              {/* Badge số trang lơ lửng */}
-              <div className="pdf-page-number-badge">
-                <span>Trang {i + 1}</span>
-                <span className="pdf-page-badge-dot" />
-                <span className="opacity-70">{zoomLevel}%</span>
-              </div>
+          const isCurrent = currentPage === i
 
-              {/* Canvas trang PDF */}
+          return (
+            <div
+              key={i}
+              className={`pdf-page-container ${isCurrent ? 'current-page-focus' : ''}`}
+              data-page-index={i}
+              style={{
+                position: 'absolute',
+                top: `${layout.offsetTop + 32}px`,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: `${layout.displayWidth}px`,
+                height: `${layout.displayHeight}px`,
+                boxSizing: 'border-box'
+              }}
+              onClick={() => {
+                setCurrentPage(i)
+                useEditorObjectsStore.getState().setSelectedObjectId(null)
+              }}
+              onContextMenu={(e) => handleContextMenu(e, i)}
+            >
+              {/* LỚP 1: Bề mặt PDF Canvas */}
               <canvas
                 ref={(el) => setCanvasRef(i, el)}
                 className="pdf-page-canvas"
+                style={{
+                  width: `${layout.displayWidth}px`,
+                  height: `${layout.displayHeight}px`,
+                  display: 'block'
+                }}
               />
 
-              {/* Lớp phủ tương tác Chữ ký & Con dấu (Annotation Overlay) */}
-              {activeAnnotation && activeAnnotation.pageIndex === i && (
-                <div
-                  className="pdf-active-annotation-box"
-                  style={{
-                    left: `${activeAnnotation.x}px`,
-                    top: `${activeAnnotation.y}px`,
-                    width: `${activeAnnotation.width}px`,
-                    height: `${activeAnnotation.height}px`
-                  }}
-                  onMouseDown={handleAnnMouseDown}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Floating Action Bar */}
-                  <div className="pdf-ann-toolbar" onMouseDown={(e) => e.stopPropagation()}>
-                    <span className="pdf-ann-tag">{activeAnnotation.label}</span>
-                    <button
-                      className="pdf-ann-btn apply"
-                      onClick={() => onApplyAnnotation?.(activeAnnotation)}
-                      title="Áp dụng vào tài liệu (Cố định vĩnh viễn)"
-                    >
-                      <Check size={13} />
-                      <span>Áp dụng</span>
-                    </button>
-                    <button
-                      className="pdf-ann-btn delete"
-                      onClick={() => onUpdateAnnotation?.(null)}
-                      title="Hủy bỏ"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+              {/* LỚP 2, 3, 4: Editor Objects Overlay, Interaction & Selection Layer */}
+              <EditorObjectOverlay
+                pageIndex={i}
+                displayWidth={layout.displayWidth}
+                displayHeight={layout.displayHeight}
+                zoomLevel={zoomLevel}
+              />
 
-                  {/* Nội dung ảnh con dấu / chữ ký */}
-                  {activeAnnotation.imageBase64 ? (
-                    <img
-                      src={activeAnnotation.imageBase64}
-                      alt="Annotation"
-                      className="pdf-ann-img"
-                      draggable={false}
-                    />
-                  ) : (
-                    <div
-                      className="pdf-ann-text"
-                      style={{
-                        fontSize: `${activeAnnotation.fontSize || 16}px`,
-                        color: activeAnnotation.color
-                          ? `rgb(${activeAnnotation.color.r}, ${activeAnnotation.color.g}, ${activeAnnotation.color.b})`
-                          : '#000000'
-                      }}
-                    >
-                      {activeAnnotation.text}
-                    </div>
-                  )}
-
-                  {/* 4 Corner Resize Handles */}
-                  <div className="pdf-ann-handle nw" onMouseDown={(e) => handleResizeStart(e, 'nw')} />
-                  <div className="pdf-ann-handle ne" onMouseDown={(e) => handleResizeStart(e, 'ne')} />
-                  <div className="pdf-ann-handle sw" onMouseDown={(e) => handleResizeStart(e, 'sw')} />
-                  <div className="pdf-ann-handle se" onMouseDown={(e) => handleResizeStart(e, 'se')} />
-                </div>
-              )}
-            </motion.div>
-            )
-          })}
-        </div>
-
-        {/* Context Menu Chuột phải trên trang */}
-        <AnimatePresence>
-          {contextMenu && (
-            <PdfContextMenu
-              x={contextMenu.x}
-              y={contextMenu.y}
-              pageIndex={contextMenu.pageIndex}
-              onClose={() => setContextMenu(null)}
-              onRotate={(deg) => onRotatePages && onRotatePages(deg)}
-              onDelete={() => onDeletePages && onDeletePages()}
-              onExtract={() => onExtractPages && onExtractPages()}
-              onPreview={() => setCurrentPage(contextMenu.pageIndex)}
-            />
-          )}
-        </AnimatePresence>
+              {/* Badge số trang góc trên */}
+              <div className="pdf-page-badge" style={{ pointerEvents: 'none' }}>
+                Trang {i + 1} / {pageCount}
+              </div>
+            </div>
+          )
+        })}
       </div>
-    )
-  }
 
-  return null
+      {/* Context Menu chuột phải trên trang */}
+      {contextMenu && (
+        <PdfContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          pageIndex={contextMenu.pageIndex}
+          pageCount={pageCount}
+          onRotateCw={() => onRotatePages?.(90)}
+          onRotateCcw={() => onRotatePages?.(-90)}
+          onDelete={() => onDeletePages?.()}
+          onExtract={() => onExtractPages?.()}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+    </div>
+  )
 }

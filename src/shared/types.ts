@@ -177,6 +177,7 @@ export interface AnalyzedTemplateResult {
 
 // ===== PDF Tools Types =====
 export interface PdfPageInfo {
+  id?: string
   index: number
   width: number
   height: number
@@ -205,17 +206,26 @@ export interface PdfOperationResult {
 }
 
 export interface PdfAnnotationData {
-  type: 'image' | 'text'
+  type: 'image' | 'text' | 'shape' | 'highlight'
   pageIndex: number
   x: number
   y: number
   width: number
   height: number
+  // For image
   imageBase64?: string
   imageType?: 'png' | 'jpg'
+  // For text
   text?: string
   fontSize?: number
-  color?: { r: number; g: number; b: number }
+  color?: { r: number; g: number; b: number } | string
+  fontFamily?: string
+  fontWeight?: string
+  // For shape
+  shapeType?: 'rect' | 'circle' | 'arrow' | 'line'
+  strokeColor?: string
+  strokeWidth?: number
+  fillColor?: string
   opacity?: number
 }
 
@@ -316,6 +326,23 @@ export interface ElectronAPI {
   pdfFlattenAnnotations: (pdfBase64: string, annotations: PdfAnnotationData[]) => Promise<PdfOperationResult>
   pdfAddWatermark: (pdfBase64: string, options: PdfWatermarkOptions) => Promise<PdfOperationResult>
   pdfImagesToPdf: (images: { base64: string; type?: 'png' | 'jpg' }[]) => Promise<PdfOperationResult>
+  pdfAddBlankPage: (
+    pdfBase64: string,
+    position: 'before' | 'after' | 'end',
+    targetIndex: number
+  ) => Promise<PdfOperationResult>
+  pdfImportPages: (
+    targetBase64: string,
+    sourceBytesArr: number[],
+    position: 'before' | 'after' | 'end',
+    targetIndex: number,
+    pageIndices?: number[]
+  ) => Promise<PdfOperationResult>
+  pdfCompress: (
+    pdfBase64: string,
+    level: 'low' | 'medium' | 'high'
+  ) => Promise<PdfOperationResult & { newSizeBytes?: number }>
+  pdfUpdateMetadata: (pdfBase64: string, metadata: any) => Promise<PdfOperationResult>
 
   // Local Storage Hub (MỚI)
   storageGetInfo: () => Promise<StorageHubInfo>

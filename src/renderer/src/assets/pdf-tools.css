@@ -1894,3 +1894,879 @@
   transform-origin: center;
 }
 
+/* ===== 4. GIAO DIỆN DESKTOP-FIRST & 6 CORE ZONES ===== */
+
+/* 4.1. Top Menu Bar (36px) */
+.pdf-top-menubar {
+  height: 36px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 12px;
+  flex-shrink: 0;
+  z-index: 50;
+  user-select: none;
+}
+
+.pdf-top-menubar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pdf-menubar-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+
+.pdf-menubar-logo-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-menubar-app-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+
+.pdf-menubar-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pdf-menu-item-wrap {
+  position: relative;
+}
+
+.pdf-menu-item-btn {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.pdf-menu-item-btn:hover,
+.pdf-menu-item-btn.active {
+  background: var(--secondary);
+}
+
+.pdf-dropdown-panel {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  min-width: 230px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  z-index: 1000;
+  animation: fadeIn 100ms ease;
+}
+
+.pdf-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 80ms ease;
+}
+
+.pdf-dropdown-item:hover:not(.disabled) {
+  background: var(--secondary);
+}
+
+.pdf-dropdown-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pdf-dropdown-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-dropdown-icon {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.pdf-dropdown-icon-placeholder {
+  width: 14px;
+  height: 14px;
+}
+
+.pdf-dropdown-shortcut {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-left: 16px;
+}
+
+.pdf-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.pdf-top-menubar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.pdf-menubar-doc-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 480px;
+}
+
+.pdf-doc-title-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pdf-doc-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pdf-doc-badge.saved {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.pdf-doc-badge.unsaved {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.pdf-doc-page-badge {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  background: var(--secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.pdf-menubar-welcome {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.pdf-top-menubar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pdf-menubar-cmd-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+
+.pdf-menubar-cmd-btn:hover {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--accent);
+}
+
+.pdf-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pdf-win-btn {
+  width: 28px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.pdf-win-btn:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+.pdf-win-btn.close:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* 4.2. Main Toolbar (44px) */
+.pdf-main-toolbar {
+  height: 44px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  flex-shrink: 0;
+  z-index: 40;
+  user-select: none;
+  gap: 4px;
+}
+
+.pdf-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pdf-tool-btn {
+  height: 32px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+
+.pdf-tool-btn:hover:not(:disabled) {
+  background: var(--secondary);
+}
+
+.pdf-tool-btn.active {
+  background: rgba(178, 213, 229, 0.28);
+  border-color: rgba(178, 213, 229, 0.6);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.dark .pdf-tool-btn.active {
+  background: rgba(178, 213, 229, 0.2);
+  border-color: rgba(178, 213, 229, 0.4);
+}
+
+.pdf-tool-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pdf-tool-btn.icon-only {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+.pdf-tool-btn.has-dropdown {
+  padding-right: 6px;
+}
+
+.pdf-chevron {
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+.pdf-toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.pdf-toolbar-spacer {
+  flex: 1;
+}
+
+.pdf-tool-dropdown-wrap {
+  position: relative;
+}
+
+.pdf-tool-popup-menu {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  min-width: 170px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pdf-tool-popup-menu.right-aligned {
+  left: auto;
+  right: 0;
+}
+
+.pdf-popup-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 80ms ease;
+}
+
+.pdf-popup-item:hover {
+  background: var(--secondary);
+}
+
+/* 4.3. Contextual Toolbar Nổi Thông Minh */
+.pdf-contextual-toolbar {
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  z-index: 60;
+  white-space: nowrap;
+  user-select: none;
+  backdrop-filter: blur(10px);
+}
+
+.pdf-context-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.pdf-context-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+
+.pdf-context-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-context-select {
+  height: 24px;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 11px;
+  outline: none;
+}
+
+.pdf-context-group.colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 100ms ease;
+}
+
+.pdf-color-dot:hover {
+  transform: scale(1.2);
+}
+
+.pdf-context-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-context-btn {
+  height: 26px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 5px;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 100ms ease;
+}
+
+.pdf-context-btn.apply {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.pdf-context-btn.apply:hover {
+  opacity: 0.9;
+}
+
+.pdf-context-btn.delete {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  padding: 0 6px;
+}
+
+.pdf-context-btn.delete:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* 4.4. Bottom Status Bar (30px) */
+.pdf-bottom-statusbar {
+  height: 30px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  flex-shrink: 0;
+  z-index: 30;
+  user-select: none;
+  font-size: 11px;
+}
+
+.pdf-statusbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdf-status-icon-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.pdf-status-icon-btn:hover:not(:disabled) {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+.pdf-status-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pdf-status-page-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-foreground);
+}
+
+.pdf-status-page-input {
+  width: 32px;
+  height: 20px;
+  padding: 0;
+  text-align: center;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 600;
+  outline: none;
+}
+
+.pdf-status-page-input:focus {
+  border-color: var(--accent);
+}
+
+.pdf-status-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-status-zoom-wrap {
+  position: relative;
+}
+
+.pdf-status-zoom-btn {
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pdf-status-zoom-menu {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  z-index: 100;
+  min-width: 90px;
+}
+
+.pdf-status-zoom-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pdf-status-zoom-option:hover {
+  background: var(--secondary);
+}
+
+.pdf-status-zoom-option.active {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.pdf-statusbar-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.pdf-status-text-btn {
+  height: 20px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pdf-status-text-btn:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+.pdf-statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-status-save-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  cursor: default;
+}
+
+.pdf-status-save-chip.saved {
+  color: #10b981;
+}
+
+.pdf-status-save-chip.unsaved {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  cursor: pointer;
+}
+
+/* 4.5. Command Palette (Ctrl+K) */
+.pdf-command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.pdf-command-palette-box {
+  width: 560px;
+  max-width: 92vw;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-command-input-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+}
+
+.pdf-command-search-icon {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.pdf-command-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+  outline: none;
+}
+
+.pdf-command-esc-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+
+.pdf-command-list {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pdf-command-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+
+.pdf-command-item:hover,
+.pdf-command-item.selected {
+  background: var(--secondary);
+}
+
+.pdf-command-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pdf-command-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(178, 213, 229, 0.15);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-command-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-command-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.pdf-command-subtitle {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.pdf-command-shortcut {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pdf-command-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.pdf-command-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--secondary);
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.pdf-command-footer kbd {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+}
+
+/* 4.6. Canvas lề thoáng & Đổ bóng trang */
+.pdf-page-container {
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04) !important;
+  border-radius: 2px;
+  transition: box-shadow 120ms ease;
+}
+
+.dark .pdf-page-container {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+.pdf-page-container.current-page-focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* ============================================================
+   Z-INDEX SYSTEM TOKENS & OVERLAY SPECIFICATION (NHÓM L)
+   Cấu trúc phân tầng chuẩn ngăn chặn xung đột sự kiện chuột:
+   Canvas (1) -> Overlay (10) -> Object (20+) -> Selection (50) -> Handles (60) -> Toolbar (70) -> Modal (1000)
+   ============================================================ */
+:root {
+  --z-pdf-canvas: 1;
+  --z-pdf-text-layer: 2;
+  --z-editor-overlay: 10;
+  --z-editor-object-default: 20;
+  --z-editor-selection-layer: 50;
+  --z-editor-resize-handle: 60;
+  --z-editor-context-toolbar: 70;
+  --z-editor-modal: 1000;
+  --z-editor-tooltip: 1100;
+}
+
+.pdf-editor-overlay-root {
+  z-index: var(--z-editor-overlay);
+}
+
+.pdf-editor-object-container {
+  z-index: var(--z-editor-object-default);
+}
+
+.pdf-selection-layer {
+  z-index: var(--z-editor-selection-layer);
+}
+
+.pdf-resize-handle {
+  z-index: var(--z-editor-resize-handle);
+}
+
+.pdf-contextual-toolbar {
+  z-index: var(--z-editor-context-toolbar);
+}
+

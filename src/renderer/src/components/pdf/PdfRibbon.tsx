@@ -39,7 +39,13 @@ import {
   X as XIcon,
   Copy,
   Sparkles,
-  ArrowDownUp
+  ArrowDownUp,
+  Redo2,
+  BookOpen,
+  PlusCircle,
+  FileArchive,
+  Image as ImageIcon,
+  Eraser
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { usePdfStore, PdfRibbonTab } from '../../stores/pdfTools.store'
@@ -53,6 +59,17 @@ interface PdfRibbonProps {
   onSplit: () => void
   onExtractPages: () => void
   onDuplicatePages?: () => void
+  onOpenAddPageModal?: () => void
+  onOpenCompressModal?: () => void
+  onOpenSecurityModal?: (tab?: 'password' | 'metadata') => void
+  onOpenUserGuide?: () => void
+  onInsertImage?: () => void
+  onWhiteoutText?: () => void
+  onInsertShape?: (shape: 'rect' | 'circle' | 'arrow' | 'line') => void
+  onHighlight?: () => void
+  onUnderline?: () => void
+  onStrikeout?: () => void
+  onComment?: () => void
   onOpenSignatureModal?: (tab?: 'draw' | 'upload' | 'type' | 'stamp') => void
   onOpenWatermarkModal?: () => void
   onExportImages?: () => void
@@ -83,6 +100,17 @@ export function PdfRibbon({
   onExportImages,
   onImagesToPdf,
   onInsertQuickSymbol,
+  onOpenAddPageModal,
+  onOpenCompressModal,
+  onOpenSecurityModal,
+  onOpenUserGuide,
+  onInsertImage,
+  onWhiteoutText,
+  onInsertShape,
+  onHighlight,
+  onUnderline,
+  onStrikeout,
+  onComment,
   onPlaceholderAction
 }: PdfRibbonProps) {
   const {
@@ -93,6 +121,8 @@ export function PdfRibbon({
     selectedPages,
     canUndo,
     undo,
+    canRedo,
+    redo,
     panMode,
     setPanMode,
     activeTool,
@@ -138,6 +168,31 @@ export function PdfRibbon({
             </button>
           )
         })}
+
+        {/* Nút Hướng Dẫn Nổi Bật Trên Ribbon Tabs */}
+        {onOpenUserGuide && (
+          <button
+            onClick={onOpenUserGuide}
+            style={{
+              marginLeft: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15))',
+              border: '1px solid rgba(139, 92, 246, 0.35)',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: 'var(--foreground)',
+              cursor: 'pointer'
+            }}
+            title="Cẩm nang hướng dẫn sử dụng 4 giai đoạn"
+          >
+            <BookOpen size={14} color="#8b5cf6" />
+            <span>Hướng dẫn sử dụng</span>
+          </button>
+        )}
       </div>
 
       {/* 2. Dải công cụ ngữ cảnh (Contextual Action Ribbon) */}
@@ -270,6 +325,15 @@ export function PdfRibbon({
                   <Undo2 size={18} />
                   <span>Hoàn tác</span>
                 </button>
+                <button
+                  className="pdf-ribbon-btn"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  title="Làm lại tác vụ vừa hoàn tác (Ctrl+Y)"
+                >
+                  <Redo2 size={18} />
+                  <span>Làm lại</span>
+                </button>
               </div>
             </div>
           </motion.div>
@@ -349,6 +413,15 @@ export function PdfRibbon({
                 >
                   <Copy size={18} />
                   <span>Nhân bản</span>
+                </button>
+                <button
+                  className="pdf-ribbon-btn"
+                  onClick={onOpenAddPageModal}
+                  disabled={!hasPdf}
+                  title="Thêm trang trắng A4 hoặc nhập từ PDF khác"
+                >
+                  <PlusCircle size={18} />
+                  <span>Thêm trang</span>
                 </button>
               </div>
             </div>
@@ -446,9 +519,9 @@ export function PdfRibbon({
 
             <div className="pdf-ribbon-divider" />
 
-            {/* Nhóm 2: Chèn văn bản điền đơn */}
+            {/* Nhóm 2: Chèn văn bản điền đơn & hình ảnh */}
             <div className="pdf-toolgroup">
-              <span className="pdf-toolgroup-title">Văn bản điền đơn</span>
+              <span className="pdf-toolgroup-title">Nội dung điền đơn</span>
               <div className="pdf-toolgroup-items">
                 <button
                   className={`pdf-ribbon-btn ${activeTool === 'text' ? 'active' : ''}`}
@@ -474,6 +547,24 @@ export function PdfRibbon({
                 >
                   <Calendar size={18} />
                   <span>Ngày tháng</span>
+                </button>
+                <button
+                  className="pdf-ribbon-btn"
+                  onClick={onInsertImage}
+                  disabled={!hasPdf}
+                  title="Chèn file ảnh bất kỳ (JPG, PNG, WebP) từ máy tính"
+                >
+                  <ImageIcon size={18} />
+                  <span>Chèn ảnh</span>
+                </button>
+                <button
+                  className="pdf-ribbon-btn"
+                  onClick={onWhiteoutText}
+                  disabled={!hasPdf}
+                  title="Che chữ cũ bằng hộp trắng và gõ chữ mới đè lên"
+                >
+                  <Eraser size={18} />
+                  <span>Sửa chữ</span>
                 </button>
               </div>
             </div>
@@ -550,7 +641,8 @@ export function PdfRibbon({
                   className={`pdf-ribbon-btn ${activeTool === 'highlight' ? 'active' : ''}`}
                   onClick={() => {
                     setActiveTool('highlight')
-                    handleAction('Bút highlight')
+                    if (onHighlight) onHighlight()
+                    else handleAction('Bút highlight')
                   }}
                   disabled={!hasPdf}
                   title="Làm nổi bật đoạn văn bản bằng màu dạ quang"
@@ -560,7 +652,7 @@ export function PdfRibbon({
                 </button>
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Gạch chân')}
+                  onClick={() => onUnderline ? onUnderline() : handleAction('Gạch chân')}
                   disabled={!hasPdf}
                   title="Gạch chân dòng văn bản quan trọng"
                 >
@@ -569,7 +661,7 @@ export function PdfRibbon({
                 </button>
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Gạch bỏ')}
+                  onClick={() => onStrikeout ? onStrikeout() : handleAction('Gạch bỏ')}
                   disabled={!hasPdf}
                   title="Gạch bỏ văn bản hủy bỏ"
                 >
@@ -599,7 +691,7 @@ export function PdfRibbon({
                 </button>
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Ghi chú dán')}
+                  onClick={() => onComment ? onComment() : handleAction('Ghi chú dán')}
                   disabled={!hasPdf}
                   title="Đính kèm thẻ ghi chú dán (Sticky Note)"
                 >
@@ -617,7 +709,7 @@ export function PdfRibbon({
               <div className="pdf-toolgroup-items">
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Hình chữ nhật')}
+                  onClick={() => onInsertShape ? onInsertShape('rect') : handleAction('Hình chữ nhật')}
                   disabled={!hasPdf}
                   title="Vẽ hình chữ nhật hoặc khoanh vùng"
                 >
@@ -626,7 +718,7 @@ export function PdfRibbon({
                 </button>
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Hình tròn')}
+                  onClick={() => onInsertShape ? onInsertShape('circle') : handleAction('Hình tròn')}
                   disabled={!hasPdf}
                   title="Vẽ hình tròn / elip"
                 >
@@ -635,7 +727,7 @@ export function PdfRibbon({
                 </button>
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Mũi tên')}
+                  onClick={() => onInsertShape ? onInsertShape('arrow') : handleAction('Mũi tên')}
                   disabled={!hasPdf}
                   title="Vẽ mũi tên chỉ điểm"
                 >
@@ -644,7 +736,7 @@ export function PdfRibbon({
                 </button>
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Đường kẻ')}
+                  onClick={() => onInsertShape ? onInsertShape('line') : handleAction('Đường kẻ')}
                   disabled={!hasPdf}
                   title="Vẽ đường thẳng phân cách"
                 >
@@ -670,7 +762,7 @@ export function PdfRibbon({
               <div className="pdf-toolgroup-items">
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Đặt mật khẩu')}
+                  onClick={() => onOpenSecurityModal ? onOpenSecurityModal('password') : handleAction('Đặt mật khẩu')}
                   disabled={!hasPdf}
                   title="Đặt mật khẩu mã hóa ngăn mở hoặc in PDF"
                 >
@@ -679,22 +771,31 @@ export function PdfRibbon({
                 </button>
                 <button
                   className="pdf-ribbon-btn"
-                  onClick={() => handleAction('Gỡ mật khẩu')}
+                  onClick={() => onOpenSecurityModal ? onOpenSecurityModal('metadata') : handleAction('Xóa Metadata')}
                   disabled={!hasPdf}
                   title="Gỡ bỏ mật khẩu bảo vệ của tài liệu"
                 >
                   <Unlock size={18} />
-                  <span>Gỡ mật khẩu</span>
+                  <span>Metadata</span>
                 </button>
               </div>
             </div>
 
             <div className="pdf-ribbon-divider" />
 
-            {/* Nhóm 2: Bản quyền & Đóng dấu */}
+            {/* Nhóm 2: Bản quyền & Nén */}
             <div className="pdf-toolgroup">
-              <span className="pdf-toolgroup-title">Bản quyền</span>
+              <span className="pdf-toolgroup-title">Tối ưu & Bản quyền</span>
               <div className="pdf-toolgroup-items">
+                <button
+                  className="pdf-ribbon-btn"
+                  onClick={onOpenCompressModal}
+                  disabled={!hasPdf}
+                  title="Nén giảm dung lượng tệp PDF (Compress)"
+                >
+                  <FileArchive size={18} />
+                  <span>Nén PDF</span>
+                </button>
                 <button
                   className="pdf-ribbon-btn"
                   onClick={() => {

@@ -1,53 +1,42 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { LoadingOverlay } from '../components/common/LoadingOverlay'
 import { ExportConfigSection } from '../components/common/ExportConfigSection'
 import { FloatingExportBar } from '../components/common/FloatingExportBar'
+import { DocumentToast } from '../components/common/DocumentToast'
+import { DateInputGroup } from '../components/common/DateInputGroup'
+import { FormModeTabs } from '../components/common/FormModeTabs'
+import { AiExtractCard } from '../components/common/AiExtractCard'
+import { PartnerAutocompleteInput } from '../components/common/PartnerAutocompleteInput'
 import {
-  FileText,
-  Sparkles,
   Download,
-  Calendar,
   Building2,
   UserCheck,
   RotateCcw,
-  CheckCircle2,
-  AlertCircle,
-  Wand2,
-  FileCheck,
-  ExternalLink,
-  Folder
+  FileCheck
 } from 'lucide-react'
-import type { ContractData, ExportFileType } from '../../../shared/types'
+import type { ContractData, ExportFileType, PartnerProfile } from '../../../shared/types'
 import { DEFAULT_BEN_B } from '../../../shared/types'
-import { playSuccessChime } from '../lib/sound'
 import { useFormDraftsStore } from '../stores/formDrafts.store'
+import { useDocumentToast } from '../hooks/useDocumentToast'
+import { useExportShortcut, useDefaultExportDir } from '../hooks/useFormShortcuts'
 
 export function ContractForm() {
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual')
-  const [rawText, setRawText] = useState('')
   const [isParsing, setIsParsing] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
-  // Toast Notification State
-  const [toastMessage, setToastMessage] = useState<{
-    type: 'success' | 'error'
-    text: string
-    filePath?: string
-    pdfPath?: string
-  } | null>(null)
+  // Shared Toast & Chime Sound
+  const { toast, showToast, clearToast } = useDocumentToast()
 
-  // Current Date Defaults
-  const today = new Date()
-  const currentDay = String(today.getDate()).padStart(2, '0')
-  const currentMonth = String(today.getMonth() + 1).padStart(2, '0')
-  const currentYear = String(today.getFullYear())
-
-  // Form Draft Persistence Store (giữ nguyên dữ liệu khi chuyển tab)
+  // Form Draft Persistence Store
   const formData = useFormDraftsStore((s) => s.contractDraft)
   const setFormData = useFormDraftsStore((s) => s.setContractDraft)
   const resetContractDraft = useFormDraftsStore((s) => s.resetContractDraft)
+
+  // Nạp thư mục xuất mặc định
+  useDefaultExportDir((dir) => setFormData((prev) => ({ ...prev, export_dir: dir })))
 
   const handleClearAllData = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ thông tin đang điền trong hợp đồng để làm mới?')) {
@@ -56,54 +45,13 @@ export function ContractForm() {
     }
   }
 
-  // Load default export dir from settings
-  useEffect(() => {
-    const loadDefaultDir = async () => {
-      if (window.api?.getSetting) {
-        try {
-          const dir = await window.api.getSetting('defaultExportDir')
-          if (dir) {
-            setFormData((prev) => ({ ...prev, export_dir: dir }))
-          }
-        } catch (err) {
-          console.error('Lỗi đọc settings:', err)
-        }
-      }
-    }
-    loadDefaultDir()
-  }, [])
-
-  // Keyboard shortcut Listener: Ctrl + Enter to Export
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault()
-        handleExportDocx()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [formData])
-
-  const showToast = (
-    type: 'success' | 'error',
-    text: string,
-    filePath?: string,
-    pdfPath?: string
-  ) => {
-    setToastMessage({ type, text, filePath, pdfPath })
-    if (type === 'success') {
-      playSuccessChime()
-    }
-    setTimeout(() => setToastMessage(null), 7000)
-  }
-
   const handleFillToday = () => {
+    const today = new Date()
     setFormData((prev) => ({
       ...prev,
-      ngay: currentDay,
-      thang: currentMonth,
-      nam: currentYear
+      ngay: String(today.getDate()).padStart(2, '0'),
+      thang: String(today.getMonth() + 1).padStart(2, '0'),
+      nam: String(today.getFullYear())
     }))
     showToast('success', 'Đã cập nhật ngày hôm nay cho hợp đồng!')
   }
@@ -129,8 +77,8 @@ export function ContractForm() {
   }
 
   // AI Parse Handler
-  const handleAIParse = async () => {
-    if (!rawText.trim()) {
+  const handleAIParse = async (text: string) => {
+    if (!text.trim()) {
       showToast('error', 'Vui lòng dán nội dung thông tin công ty vào trước!')
       return
     }
@@ -142,7 +90,7 @@ export function ContractForm() {
 
     setIsParsing(true)
     try {
-      const parsed = await window.api.parseTextWithAI(rawText)
+      const parsed = await window.api.parseTextWithAI(text)
 
       setFormData((prev) => {
         const next = { ...prev }
@@ -165,7 +113,7 @@ export function ContractForm() {
         return next
       })
 
-      showToast('success', 'AI đã bóc tách dữ liệu thành công!')
+      showToast('success', 'AI đã bóc tách dữ liệu hợp đồng thành công!')
     } catch (err) {
       showToast('error', 'Có lỗi xảy ra khi phân tích dữ liệu.')
     } finally {
@@ -256,6 +204,9 @@ export function ContractForm() {
     }
   }
 
+  // Lắng nghe phím tắt Ctrl + Enter
+  useExportShortcut(handleExportDocx, isExporting)
+
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', paddingBottom: '80px' }}>
       {/* High-tech Animated Loading Overlay */}
@@ -334,179 +285,23 @@ export function ContractForm() {
       </PageHeader>
 
       {/* Control Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justify: 'space-between',
-          background: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
-          padding: '8px 12px',
-          marginBottom: '24px'
-        }}
-      >
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            onClick={() => setActiveTab('manual')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'manual' ? 'var(--primary)' : 'transparent',
-              color: activeTab === 'manual' ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            <FileText size={16} />
-            Nhập thủ công
-          </button>
-
-          <button
-            onClick={() => setActiveTab('ai')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'ai' ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'transparent',
-              color: activeTab === 'ai' ? '#ffffff' : 'var(--muted-foreground)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            <Sparkles size={16} />
-            Dán văn bản (AI tự bóc tách)
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginRight: '4px' }}>
-            Phím tắt: <kbd style={{ background: 'var(--muted)', padding: '2px 5px', borderRadius: '4px' }}>Ctrl+Enter</kbd> để xuất
-          </span>
-          <button
-            onClick={handleFillToday}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: 'var(--muted)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              color: 'var(--foreground)',
-              fontSize: '12px',
-              cursor: 'pointer'
-            }}
-          >
-            <Calendar size={14} />
-            Hôm nay
-          </button>
-        </div>
-      </div>
+      <FormModeTabs
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        onFillToday={handleFillToday}
+      />
 
       {/* AI Assistant Section */}
       {activeTab === 'ai' && (
-        <div
-          style={{
-            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(236, 72, 153, 0.08))',
-            border: '1px solid rgba(139, 92, 246, 0.25)',
-            borderRadius: '16px',
-            padding: '20px',
-            marginBottom: '24px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div
-              style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                display: 'flex',
-                alignItems: 'center',
-                justify: 'center',
-                color: '#fff'
-              }}
-            >
-              <Wand2 size={16} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--foreground)' }}>
-                Trợ lý AI bóc tách hợp đồng
-              </h3>
-              <p style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
-                Dán toàn bộ đoạn văn bản thông tin công ty từ Zalo, Email... AI sẽ tự trích xuất thông tin
-              </p>
-            </div>
-          </div>
-
-          <textarea
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            placeholder="Dán nội dung tin nhắn hoặc thông tin công ty vào đây..."
-            rows={5}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--background)',
-              color: 'var(--foreground)',
-              fontSize: '13px',
-              fontFamily: "'Inter', sans-serif",
-              resize: 'vertical',
-              outline: 'none',
-              lineHeight: 1.5,
-              marginBottom: '12px'
-            }}
-          />
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button
-              onClick={() => setRawText('')}
-              style={{
-                padding: '7px 14px',
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                fontSize: '12.5px',
-                color: 'var(--muted-foreground)',
-                cursor: 'pointer'
-              }}
-            >
-              Xóa
-            </button>
-            <button
-              onClick={handleAIParse}
-              disabled={isParsing}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 18px',
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              <Sparkles size={15} />
-              {isParsing ? 'Đang bóc tách...' : 'Bóc tách thông tin ngay'}
-            </button>
-          </div>
-        </div>
+        <AiExtractCard
+          title="Trợ lý AI bóc tách hợp đồng"
+          description="Dán toàn bộ đoạn văn bản thông tin công ty từ Zalo, Email... AI sẽ tự trích xuất thông tin"
+          rawText={rawText}
+          isParsing={isParsing}
+          onChangeText={setRawText}
+          onClear={() => setRawText('')}
+          onParse={handleAIParse}
+        />
       )}
 
       {/* Main Contract Form */}
@@ -551,34 +346,16 @@ export function ContractForm() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '4px' }}>
-                Ngày hợp đồng
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  className="setting-input"
-                  style={{ width: '55px', textAlign: 'center' }}
-                  value={formData.ngay}
-                  onChange={(e) => setFormData((p) => ({ ...p, ngay: e.target.value }))}
-                />
-                <span style={{ fontSize: '12.5px', color: 'var(--muted-foreground)' }}>/</span>
-                <input
-                  type="text"
-                  className="setting-input"
-                  style={{ width: '55px', textAlign: 'center' }}
-                  value={formData.thang}
-                  onChange={(e) => setFormData((p) => ({ ...p, thang: e.target.value }))}
-                />
-                <span style={{ fontSize: '12.5px', color: 'var(--muted-foreground)' }}>/</span>
-                <input
-                  type="text"
-                  className="setting-input"
-                  style={{ width: '75px', textAlign: 'center' }}
-                  value={formData.nam}
-                  onChange={(e) => setFormData((p) => ({ ...p, nam: e.target.value }))}
-                />
-              </div>
+              <DateInputGroup
+                label="Ngày hợp đồng"
+                day={formData.ngay}
+                month={formData.thang}
+                year={formData.nam}
+                onChangeDay={(val) => setFormData((p) => ({ ...p, ngay: val }))}
+                onChangeMonth={(val) => setFormData((p) => ({ ...p, thang: val }))}
+                onChangeYear={(val) => setFormData((p) => ({ ...p, nam: val }))}
+                onFillToday={handleFillToday}
+              />
             </div>
           </div>
 
@@ -610,28 +387,34 @@ export function ContractForm() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '4px' }}>
-                  Tên công ty <span style={{ color: 'var(--destructive)' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  className={errors.bena_ten_cong_ty ? 'setting-input input-error' : 'setting-input'}
-                  style={{ width: '100%', textTransform: 'uppercase', fontWeight: 600 }}
+                <PartnerAutocompleteInput
+                  label="Tên công ty"
+                  required
+                  uppercase
+                  isError={errors.bena_ten_cong_ty}
                   value={formData.bena_ten_cong_ty}
-                  onChange={(e) => {
-                    const val = e.target.value.toUpperCase()
+                  placeholder="Nhập tên công ty đối tác..."
+                  onChange={(val) => {
                     if (errors.bena_ten_cong_ty) setErrors((prev) => ({ ...prev, bena_ten_cong_ty: false }))
-                    setFormData((prev) => {
-                      const cleanName = val.replace(/CÔNG TY/gi, '').replace(/[\\/:*?"<>|]/g, '').trim()
-                      const suggestedFileName = cleanName ? `HopDong_${cleanName}.docx` : 'HopDong_Mau.docx'
-                      return {
-                        ...prev,
-                        bena_ten_cong_ty: val,
-                        file_name: prev.file_name && !prev.file_name.includes('Mau') ? prev.file_name : suggestedFileName
-                      }
-                    })
+                    const cleanName = val.replace(/CÔNG TY/gi, '').replace(/[\\/:*?"<>|]/g, '').trim()
+                    const suggestedFileName = cleanName ? `HopDong_${cleanName}.docx` : 'HopDong_Mau.docx'
+                    setFormData((prev) => ({
+                      ...prev,
+                      bena_ten_cong_ty: val,
+                      file_name: prev.file_name && !prev.file_name.includes('Mau') ? prev.file_name : suggestedFileName
+                    }))
                   }}
-                  placeholder="Nhập tên công ty..."
+                  onSelectPartner={(p) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      bena_mst: p.mst || prev.bena_mst,
+                      bena_dai_dien: p.dai_dien || prev.bena_dai_dien,
+                      bena_xung_danh: (p.xung_danh as any) || prev.bena_xung_danh,
+                      bena_chuc_vu: p.chuc_vu || prev.bena_chuc_vu,
+                      bena_dia_chi: p.dia_chi || prev.bena_dia_chi,
+                      bena_tai_khoan: p.tai_khoan || prev.bena_tai_khoan
+                    }))
+                  }}
                 />
               </div>
 
@@ -877,6 +660,7 @@ export function ContractForm() {
       </div>
 
       {/* Floating Export Button Bar */}
+      {/* Floating Action Bar */}
       <FloatingExportBar
         title={`Hợp đồng: ${formData.bena_ten_cong_ty || 'Chưa nhập Bên A'}`}
         exportType={formData.export_type}
@@ -886,93 +670,8 @@ export function ContractForm() {
         buttonLabel={isExporting ? 'Đang tạo file...' : `Tạo & Xuất Hợp Đồng (${formData.export_type.toUpperCase()})`}
       />
 
-      {/* Rich Interactive Toast Notification with Quick Actions */}
-      {toastMessage && (
-        <div
-          className="toast"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            borderColor: toastMessage.type === 'error' ? 'var(--destructive)' : '#10b981',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {toastMessage.type === 'success' ? (
-              <CheckCircle2 size={18} color="#10b981" />
-            ) : (
-              <AlertCircle size={18} color="var(--destructive)" />
-            )}
-            <span style={{ fontWeight: 600 }}>{toastMessage.text}</span>
-          </div>
-
-          {/* Action buttons if export succeeded */}
-          {toastMessage.type === 'success' && (toastMessage.filePath || toastMessage.pdfPath) && (
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              {toastMessage.filePath && (
-                <button
-                  onClick={() => window.api?.openPath(toastMessage.filePath!)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    background: 'var(--primary)',
-                    color: 'var(--primary-foreground)',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <ExternalLink size={14} color="var(--primary-foreground)" /> Mở file Word
-                </button>
-              )}
-
-              {toastMessage.pdfPath && (
-                <button
-                  onClick={() => window.api?.openPath(toastMessage.pdfPath!)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    background: '#ef4444',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <ExternalLink size={14} color="#ffffff" /> Mở file PDF
-                </button>
-              )}
-
-              <button
-                onClick={() => window.api?.showItemInFolder(toastMessage.filePath || toastMessage.pdfPath!)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 12px',
-                  background: 'var(--muted)',
-                  color: 'var(--foreground)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                <Folder size={14} /> Mở thư mục
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Reusable Toast Notification */}
+      <DocumentToast toast={toast} onClose={clearToast} />
     </div>
   )
 }

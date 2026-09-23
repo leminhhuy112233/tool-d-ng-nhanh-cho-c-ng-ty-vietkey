@@ -1,21 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { LoadingOverlay } from '../components/common/LoadingOverlay'
 import { ExportConfigSection } from '../components/common/ExportConfigSection'
 import { FloatingExportBar } from '../components/common/FloatingExportBar'
+import { DocumentToast } from '../components/common/DocumentToast'
+import { FormModeTabs } from '../components/common/FormModeTabs'
+import { AiExtractCard } from '../components/common/AiExtractCard'
+import { DateInputGroup } from '../components/common/DateInputGroup'
+import { PartnerAutocompleteInput } from '../components/common/PartnerAutocompleteInput'
 import {
-  FileText,
-  Sparkles,
   Download,
-  Calendar,
   Plus,
   Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Wand2,
   Layers,
-  ExternalLink,
-  Folder,
   Percent,
   RotateCcw,
   Copy,
@@ -26,26 +23,16 @@ import {
   CheckSquare,
   Square
 } from 'lucide-react'
-import type { QuotationData, QuotationItem, ExportFileType, PartnerProfile } from '../../../shared/types'
+import type { QuotationData, QuotationItem, PartnerProfile } from '../../../shared/types'
 import { numberToVietnameseWords } from '../../../shared/number-to-words'
-import { playSuccessChime } from '../lib/sound'
+import { calculatePriceWithPercent } from '../../../shared/formatters'
 import { useFormDraftsStore } from '../stores/formDrafts.store'
+import { useDocumentToast } from '../hooks/useDocumentToast'
+import { usePartnerSuggestions } from '../hooks/usePartnerSuggestions'
+import { useExportShortcut, useDefaultExportDir } from '../hooks/useFormShortcuts'
 
 // Common Quotation Units
 const COMMON_UNITS = ['M³', 'Tấn', 'Bao', 'Cái', 'Bộ', 'Kg', 'Chuyến', 'Khác...']
-
-// Helper tính đơn giá sau khi tăng % (làm tròn số nguyên chuẩn VNĐ)
-export const calculatePriceWithPercent = (basePrice: string, percentStr: string): string => {
-  const cleanDigits = (basePrice || '').replace(/[^0-9]/g, '')
-  if (!cleanDigits) return ''
-  const baseNum = Number(cleanDigits)
-  const pct = parseFloat((percentStr || '').replace(',', '.'))
-  if (isNaN(pct) || pct === 0) {
-    return baseNum.toLocaleString('vi-VN')
-  }
-  const finalPrice = Math.round(baseNum * (1 + pct / 100))
-  return finalPrice.toLocaleString('vi-VN')
-}
 
 export function QuotationForm() {
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual')
@@ -59,28 +46,19 @@ export function QuotationForm() {
   // Thuế VAT (0%, 8%, 10%)
   const [vatRate, setVatRate] = useState<number>(10)
 
+  // Shared Toast & Sound
+  const { toast, showToast } = useDocumentToast()
+
   // Partner Memory Suggestions
-  const [savedPartners, setSavedPartners] = useState<PartnerProfile[]>([])
-  const [showPartnerSuggestions, setShowPartnerSuggestions] = useState(false)
-
-  // Toast Notification State
-  const [toastMessage, setToastMessage] = useState<{
-    type: 'success' | 'error'
-    text: string
-    filePath?: string
-    pdfPath?: string
-  } | null>(null)
-
-  // Current date
-  const today = new Date()
-  const currentDay = String(today.getDate()).padStart(2, '0')
-  const currentMonth = String(today.getMonth() + 1).padStart(2, '0')
-  const currentYear = String(today.getFullYear())
+  const { filterPartners } = usePartnerSuggestions()
 
   // Form Draft Persistence Store (giữ nguyên dữ liệu khi chuyển tab)
   const formData = useFormDraftsStore((s) => s.quotationDraft)
   const setFormData = useFormDraftsStore((s) => s.setQuotationDraft)
   const resetQuotationDraft = useFormDraftsStore((s) => s.resetQuotationDraft)
+
+  // Nạp thư mục xuất mặc định
+  useDefaultExportDir((dir) => setFormData((prev) => ({ ...prev, export_dir: dir })))
 
   const handleClearAllData = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ thông tin đang điền trong bảng báo giá để làm mới?')) {
@@ -90,69 +68,20 @@ export function QuotationForm() {
     }
   }
 
-  // Load saved partners & export directory
-  useEffect(() => {
-    const initData = async () => {
-      if (window.api?.getSetting) {
-        try {
-          const dir = await window.api.getSetting('defaultExportDir')
-          if (dir) {
-            setFormData((prev) => ({ ...prev, export_dir: dir }))
-          }
-        } catch (err) {
-          console.error('Lỗi đọc settings:', err)
-        }
-      }
-      if (window.api?.getPartners) {
-        try {
-          const partners = await window.api.getPartners()
-          setSavedPartners(partners || [])
-        } catch (err) {
-          console.error('Lỗi đọc danh sách khách hàng cũ:', err)
-        }
-      }
-    }
-    initData()
-  }, [])
-
-  // Keyboard Shortcut Listener: Ctrl + Enter to Export
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault()
-        handleExportDocx()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [formData])
-
-  const showToast = (
-    type: 'success' | 'error',
-    text: string,
-    filePath?: string,
-    pdfPath?: string
-  ) => {
-    setToastMessage({ type, text, filePath, pdfPath })
-    if (type === 'success') {
-      playSuccessChime()
-    }
-    setTimeout(() => setToastMessage(null), 7000)
-  }
-
   const handleFillToday = () => {
+    const today = new Date()
     setFormData((prev) => ({
       ...prev,
-      ngay: currentDay,
-      thang: currentMonth,
-      nam: currentYear
+      ngay: String(today.getDate()).padStart(2, '0'),
+      thang: String(today.getMonth() + 1).padStart(2, '0'),
+      nam: String(today.getFullYear())
     }))
     showToast('success', 'Đã cập nhật ngày báo giá hôm nay!')
   }
 
   const handleCustomerChange = (val: string) => {
     setFormData((prev) => {
-      const cleanName = val.replace(/CÔNG TY/gi, '').replace(/[\\/:*?"<>|]/g, '').trim()
+      const cleanName = val.replace(/CÔNG TY/gi, '').replace(/[\/:*?"<>|]/g, '').trim()
       const suggestedName = cleanName ? `BaoGia_${cleanName}.docx` : 'BaoGia.docx'
       return {
         ...prev,
@@ -160,12 +89,10 @@ export function QuotationForm() {
         file_name: prev.file_name && !prev.file_name.includes('BaoGia') ? prev.file_name : suggestedName
       }
     })
-    setShowPartnerSuggestions(true)
   }
 
   const selectPartnerSuggestion = (partner: PartnerProfile) => {
     handleCustomerChange(partner.ten_cong_ty)
-    setShowPartnerSuggestions(false)
   }
 
   // Row Management
@@ -457,10 +384,11 @@ export function QuotationForm() {
     }
   }
 
-  // Filter partner suggestions
-  const filteredPartners = savedPartners.filter((p) =>
-    p.ten_cong_ty.toLowerCase().includes(formData.ten_khach_hang.toLowerCase())
-  )
+  // Phím tắt Ctrl + Enter để xuất file
+  useExportShortcut(handleExportDocx, [formData])
+
+
+
 
   // Quotation Financial Totals
   const subtotal = formData.items.reduce((sum, it) => {
@@ -551,179 +479,23 @@ export function QuotationForm() {
       </PageHeader>
 
       {/* Control Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justify: 'space-between',
-          background: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
-          padding: '8px 12px',
-          marginBottom: '24px'
-        }}
-      >
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            onClick={() => setActiveTab('manual')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'manual' ? 'var(--primary)' : 'transparent',
-              color: activeTab === 'manual' ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            <FileText size={16} />
-            Nhập bảng thủ công
-          </button>
-
-          <button
-            onClick={() => setActiveTab('ai')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'ai' ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'transparent',
-              color: activeTab === 'ai' ? '#ffffff' : 'var(--muted-foreground)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            <Sparkles size={16} />
-            Dán văn bản (AI điền nhanh)
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginRight: '4px' }}>
-            Phím tắt: <kbd style={{ background: 'var(--muted)', padding: '2px 5px', borderRadius: '4px' }}>Ctrl+Enter</kbd> để xuất
-          </span>
-          <button
-            onClick={handleFillToday}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: 'var(--muted)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              color: 'var(--foreground)',
-              fontSize: '12px',
-              cursor: 'pointer'
-            }}
-          >
-            <Calendar size={14} />
-            Hôm nay
-          </button>
-        </div>
-      </div>
+      <FormModeTabs
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        onFillToday={handleFillToday}
+      />
 
       {/* AI Assistant Section */}
       {activeTab === 'ai' && (
-        <div
-          style={{
-            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(236, 72, 153, 0.08))',
-            border: '1px solid rgba(139, 92, 246, 0.25)',
-            borderRadius: '16px',
-            padding: '20px',
-            marginBottom: '24px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div
-              style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                display: 'flex',
-                alignItems: 'center',
-                justify: 'center',
-                color: '#fff'
-              }}
-            >
-              <Wand2 size={16} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--foreground)' }}>
-                AI Bóc tách bảng báo giá
-              </h3>
-              <p style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
-                Dán danh sách vật tư (ví dụ: Đá 1x2 - M3 - 580.000) vào đây để AI tự tạo bảng
-              </p>
-            </div>
-          </div>
-
-          <textarea
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            placeholder="Dán nội dung Zalo, email hoặc thông tin đối tác vào đây..."
-            rows={4}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--background)',
-              color: 'var(--foreground)',
-              fontSize: '13px',
-              fontFamily: "'Inter', sans-serif",
-              resize: 'vertical',
-              outline: 'none',
-              lineHeight: 1.5,
-              marginBottom: '12px'
-            }}
-          />
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button
-              onClick={() => setRawText('')}
-              style={{
-                padding: '7px 14px',
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                fontSize: '12.5px',
-                color: 'var(--muted-foreground)',
-                cursor: 'pointer'
-              }}
-            >
-              Xóa
-            </button>
-            <button
-              onClick={handleAIParse}
-              disabled={isParsing}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 18px',
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              <Sparkles size={15} />
-              {isParsing ? 'Đang phân tích...' : 'Phân tích & Tự điền bảng'}
-            </button>
-          </div>
-        </div>
+        <AiExtractCard
+          title="Trợ lý AI bóc tách báo giá"
+          description="Dán văn bản hoặc bảng giá thô từ Zalo/Excel... AI sẽ tự phân tích và điền vào bảng"
+          rawText={rawText}
+          isParsing={isParsing}
+          onChangeText={setRawText}
+          onClear={() => setRawText('')}
+          onParse={handleAIParse}
+        />
       )}
 
       {/* Main Quotation Form */}
@@ -750,96 +522,29 @@ export function QuotationForm() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px' }}>
-            <div style={{ position: 'relative' }}>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '4px' }}>
-                Kính gửi (Tên khách hàng / Đơn vị nhận báo giá) <span style={{ color: 'var(--destructive)' }}>*</span>
-              </label>
-              <input
-                type="text"
-                className={errors.ten_khach_hang ? 'setting-input input-error' : 'setting-input'}
-                style={{ width: '100%', fontWeight: 600 }}
-                value={formData.ten_khach_hang}
-                onChange={(e) => {
-                  if (errors.ten_khach_hang) setErrors((prev) => ({ ...prev, ten_khach_hang: false }))
-                  handleCustomerChange(e.target.value)
-                }}
-                onFocus={() => setShowPartnerSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowPartnerSuggestions(false), 200)}
-                placeholder="Nhập tên khách hàng..."
-              />
+            <PartnerAutocompleteInput
+              label="Kính gửi (Tên khách hàng / Đơn vị nhận báo giá)"
+              required
+              value={formData.ten_khach_hang}
+              placeholder="Nhập tên khách hàng..."
+              error={errors.ten_khach_hang}
+              onChange={(val) => {
+                if (errors.ten_khach_hang) setErrors((prev) => ({ ...prev, ten_khach_hang: false }))
+                handleCustomerChange(val)
+              }}
+              onSelectPartner={selectPartnerSuggestion}
+              partners={filterPartners(formData.ten_khach_hang)}
+            />
 
-              {/* Partner Memory Autocomplete Dropdown */}
-              {showPartnerSuggestions && filteredPartners.length > 0 && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    background: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    marginTop: '4px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                    maxHeight: '180px',
-                    overflowY: 'auto',
-                    zIndex: 100
-                  }}
-                >
-                  <div style={{ padding: '6px 12px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'var(--muted)' }}>
-                    💡 Khách hàng từng lưu trong hệ thống (Click để chọn nhanh):
-                  </div>
-                  {filteredPartners.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => selectPartnerSuggestion(p)}
-                      style={{
-                        padding: '10px 14px',
-                        cursor: 'pointer',
-                        borderBottom: '1px solid var(--border)',
-                        fontSize: '13px',
-                        fontWeight: 500
-                      }}
-                      onMouseOver={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-                      onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      {p.ten_cong_ty}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '4px' }}>
-                Ngày báo giá
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  className="setting-input"
-                  style={{ width: '55px', textAlign: 'center' }}
-                  value={formData.ngay}
-                  onChange={(e) => setFormData((p) => ({ ...p, ngay: e.target.value }))}
-                />
-                <span style={{ fontSize: '12.5px', color: 'var(--muted-foreground)' }}>/</span>
-                <input
-                  type="text"
-                  className="setting-input"
-                  style={{ width: '55px', textAlign: 'center' }}
-                  value={formData.thang}
-                  onChange={(e) => setFormData((p) => ({ ...p, thang: e.target.value }))}
-                />
-                <span style={{ fontSize: '12.5px', color: 'var(--muted-foreground)' }}>/</span>
-                <input
-                  type="text"
-                  className="setting-input"
-                  style={{ width: '75px', textAlign: 'center' }}
-                  value={formData.nam}
-                  onChange={(e) => setFormData((p) => ({ ...p, nam: e.target.value }))}
-                />
-              </div>
-            </div>
+            <DateInputGroup
+              label="Ngày báo giá"
+              day={formData.ngay}
+              month={formData.thang}
+              year={formData.nam}
+              onChangeDay={(val) => setFormData((p) => ({ ...p, ngay: val }))}
+              onChangeMonth={(val) => setFormData((p) => ({ ...p, thang: val }))}
+              onChangeYear={(val) => setFormData((p) => ({ ...p, nam: val }))}
+            />
           </div>
         </div>
 
@@ -1542,93 +1247,8 @@ export function QuotationForm() {
         buttonLabel={isExporting ? 'Đang tạo file...' : `Tạo & Xuất Báo Giá (${formData.export_type.toUpperCase()})`}
       />
 
-      {/* Rich Interactive Toast Notification with Quick Actions */}
-      {toastMessage && (
-        <div
-          className="toast"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            borderColor: toastMessage.type === 'error' ? 'var(--destructive)' : '#10b981',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {toastMessage.type === 'success' ? (
-              <CheckCircle2 size={18} color="#10b981" />
-            ) : (
-              <AlertCircle size={18} color="var(--destructive)" />
-            )}
-            <span style={{ fontWeight: 600 }}>{toastMessage.text}</span>
-          </div>
-
-          {/* Action buttons if export succeeded */}
-          {toastMessage.type === 'success' && (toastMessage.filePath || toastMessage.pdfPath) && (
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              {toastMessage.filePath && (
-                <button
-                  onClick={() => window.api?.openPath(toastMessage.filePath!)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    background: 'var(--primary)',
-                    color: 'var(--primary-foreground)',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <ExternalLink size={14} color="var(--primary-foreground)" /> Mở file Word
-                </button>
-              )}
-
-              {toastMessage.pdfPath && (
-                <button
-                  onClick={() => window.api?.openPath(toastMessage.pdfPath!)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 12px',
-                    background: '#ef4444',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <ExternalLink size={14} color="#ffffff" /> Mở file PDF
-                </button>
-              )}
-
-              <button
-                onClick={() => window.api?.showItemInFolder(toastMessage.filePath || toastMessage.pdfPath!)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 12px',
-                  background: 'var(--muted)',
-                  color: 'var(--foreground)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                <Folder size={14} /> Mở thư mục
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Toast Notification */}
+      <DocumentToast toast={toast} />
     </div>
   )
 }

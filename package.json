@@ -10,6 +10,9 @@
     "predev": "node -e \"try{require('child_process').execSync('taskkill /F /IM electron.exe',{stdio:'ignore'});}catch(e){}\"",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "benchmark": "node scripts/pdf-qa-benchmark.mjs",
     "preview": "electron-vite preview",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -44,7 +47,8 @@
     "electron-vite": "^3.0.0",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.7.3",
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "vitest": "^5.0.1"
   },
   "build": {
     "appId": "com.vietkey.docgen",

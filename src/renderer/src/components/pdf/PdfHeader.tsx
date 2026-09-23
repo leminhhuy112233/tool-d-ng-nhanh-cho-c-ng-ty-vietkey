@@ -14,7 +14,10 @@ import {
   PanelLeftClose,
   PanelLeft,
   LayoutGrid,
-  Eye
+  Eye,
+  BookOpen,
+  Search,
+  FileDown
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { usePdfStore } from '../../stores/pdfTools.store'
@@ -22,10 +25,20 @@ import { usePdfStore } from '../../stores/pdfTools.store'
 interface PdfHeaderProps {
   onOpenFile: () => void
   onSaveFile: () => void
+  onSaveAsFile?: () => void
   onPrint?: () => void
+  onToggleSearch?: () => void
+  onOpenUserGuide: () => void
 }
 
-export function PdfHeader({ onOpenFile, onSaveFile, onPrint }: PdfHeaderProps) {
+export function PdfHeader({
+  onOpenFile,
+  onSaveFile,
+  onSaveAsFile,
+  onPrint,
+  onToggleSearch,
+  onOpenUserGuide
+}: PdfHeaderProps) {
   const {
     fileName,
     fileSize,
@@ -123,6 +136,18 @@ export function PdfHeader({ onOpenFile, onSaveFile, onPrint }: PdfHeaderProps) {
 
             <div className="pdf-header-separator" />
 
+            {/* Nút Tìm kiếm */}
+            {onToggleSearch && (
+              <button
+                className="pdf-btn pdf-btn-sm pdf-btn-ghost"
+                onClick={onToggleSearch}
+                title="Tìm kiếm văn bản trong PDF (Ctrl + F)"
+              >
+                <Search size={15} />
+                <span className="pdf-btn-label-desktop">Tìm kiếm</span>
+              </button>
+            )}
+
             {/* Nút In */}
             <button
               className="pdf-btn pdf-btn-sm pdf-btn-ghost"
@@ -143,6 +168,18 @@ export function PdfHeader({ onOpenFile, onSaveFile, onPrint }: PdfHeaderProps) {
               <span className="pdf-btn-label-desktop">Mở file</span>
             </button>
 
+            {/* Nút Lưu bản sao (Save As) */}
+            {onSaveAsFile && (
+              <button
+                className="pdf-btn pdf-btn-sm pdf-btn-ghost"
+                onClick={onSaveAsFile}
+                title="Lưu bản sao với tên khác (Ctrl + Shift + S)"
+              >
+                <FileDown size={15} />
+                <span className="pdf-btn-label-desktop">Lưu bản sao</span>
+              </button>
+            )}
+
             {/* Nút Lưu chính (nổi bật) */}
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -157,6 +194,24 @@ export function PdfHeader({ onOpenFile, onSaveFile, onPrint }: PdfHeaderProps) {
 
             <div className="pdf-header-separator" />
 
+            {/* Nút Hướng Dẫn Sử Dụng (Nổi bật) */}
+            <button
+              className="pdf-btn pdf-btn-sm"
+              onClick={onOpenUserGuide}
+              style={{
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15))',
+                border: '1px solid rgba(139, 92, 246, 0.35)',
+                color: 'var(--foreground)',
+                fontWeight: 600
+              }}
+              title="Xem cẩm nang hướng dẫn sử dụng toàn diện"
+            >
+              <BookOpen size={15} color="#8b5cf6" />
+              <span>Hướng dẫn</span>
+            </button>
+
+            <div className="pdf-header-separator" />
+
             {/* Nút Đóng tài liệu */}
             <button
               className="pdf-btn pdf-btn-sm pdf-btn-ghost pdf-btn-icon pdf-btn-close"
@@ -167,10 +222,27 @@ export function PdfHeader({ onOpenFile, onSaveFile, onPrint }: PdfHeaderProps) {
             </button>
           </>
         ) : (
-          <button className="pdf-btn pdf-btn-sm pdf-btn-primary" onClick={onOpenFile}>
-            <FolderOpen size={15} />
-            <span>Chọn file PDF</span>
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="pdf-btn pdf-btn-sm"
+              onClick={onOpenUserGuide}
+              style={{
+                background: 'var(--muted)',
+                border: '1px solid var(--border)',
+                color: 'var(--foreground)',
+                fontWeight: 600
+              }}
+              title="Xem cẩm nang hướng dẫn sử dụng"
+            >
+              <BookOpen size={15} color="#8b5cf6" />
+              <span>Hướng dẫn</span>
+            </button>
+
+            <button className="pdf-btn pdf-btn-sm pdf-btn-primary" onClick={onOpenFile}>
+              <FolderOpen size={15} />
+              <span>Chọn file PDF</span>
+            </button>
+          </div>
         )}
       </div>
     </header>

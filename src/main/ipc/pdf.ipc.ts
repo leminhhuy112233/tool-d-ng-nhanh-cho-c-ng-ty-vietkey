@@ -20,7 +20,11 @@ import {
   savePdfToFile,
   flattenAnnotations,
   addWatermark,
-  imagesToPdf
+  imagesToPdf,
+  addBlankPage,
+  importPdfPages,
+  compressPdf,
+  updateMetadata
 } from '../services/pdf-service'
 import type { PdfAnnotation, SplitRange, WatermarkOptions } from '../services/pdf-service'
 
@@ -307,6 +311,98 @@ export function registerPdfHandlers(): void {
         }
       } catch (err: any) {
         return { error: err.message || 'Lỗi tạo PDF từ ảnh' }
+      }
+    }
+  )
+
+  // ===== Thêm trang trắng A4 =====
+  ipcMain.handle(
+    IPC_CHANNELS.PDF_ADD_BLANK_PAGE,
+    async (_event, pdfBase64: string, position: 'before' | 'after' | 'end', targetIndex: number) => {
+      try {
+        const pdfBytes = new Uint8Array(Buffer.from(pdfBase64, 'base64'))
+        const result = await addBlankPage(pdfBytes, position, targetIndex)
+        const info = await getPdfInfo(result)
+        return {
+          base64: Buffer.from(result).toString('base64'),
+          pageCount: info.pageCount,
+          pages: info.pages
+        }
+      } catch (err: any) {
+        return { error: err.message || 'Lỗi thêm trang trắng' }
+      }
+    }
+  )
+
+  // ===== Nhập trang từ PDF khác =====
+  ipcMain.handle(
+    IPC_CHANNELS.PDF_IMPORT_PAGES,
+    async (
+      _event,
+      targetBase64: string,
+      sourceBytesArr: number[],
+      position: 'before' | 'after' | 'end',
+      targetIndex: number,
+      pageIndices?: number[]
+    ) => {
+      try {
+        const targetBytes = new Uint8Array(Buffer.from(targetBase64, 'base64'))
+        const sourceBytes = new Uint8Array(sourceBytesArr)
+        const result = await importPdfPages(
+          targetBytes,
+          sourceBytes,
+          position,
+          targetIndex,
+          pageIndices
+        )
+        const info = await getPdfInfo(result)
+        return {
+          base64: Buffer.from(result).toString('base64'),
+          pageCount: info.pageCount,
+          pages: info.pages
+        }
+      } catch (err: any) {
+        return { error: err.message || 'Lỗi nhập trang từ PDF khác' }
+      }
+    }
+  )
+
+  // ===== Nén file PDF =====
+  ipcMain.handle(
+    IPC_CHANNELS.PDF_COMPRESS,
+    async (_event, pdfBase64: string, level: 'low' | 'medium' | 'high') => {
+      try {
+        const pdfBytes = new Uint8Array(Buffer.from(pdfBase64, 'base64'))
+        const result = await compressPdf(pdfBytes, level)
+        const info = await getPdfInfo(result)
+        const base64 = Buffer.from(result).toString('base64')
+        return {
+          base64,
+          pageCount: info.pageCount,
+          pages: info.pages,
+          newSizeBytes: result.length
+        }
+      } catch (err: any) {
+        return { error: err.message || 'Lỗi nén PDF' }
+      }
+    }
+  )
+
+  // ===== Cập nhật hoặc Xóa Metadata =====
+  ipcMain.handle(
+    IPC_CHANNELS.PDF_UPDATE_METADATA,
+    async (_event, pdfBase64: string, metadata: any) => {
+      try {
+        const pdfBytes = new Uint8Array(Buffer.from(pdfBase64, 'base64'))
+        const result = await updateMetadata(pdfBytes, metadata)
+        const info = await getPdfInfo(result)
+        return {
+          base64: Buffer.from(result).toString('base64'),
+          pageCount: info.pageCount,
+          pages: info.pages
+        }
+      } catch (err: any) {
+        return { error: err.message || 'Lỗi cập nhật metadata' }
       }
     }
   )
