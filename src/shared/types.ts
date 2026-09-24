@@ -344,12 +344,41 @@ export interface ElectronAPI {
   ) => Promise<PdfOperationResult & { newSizeBytes?: number }>
   pdfUpdateMetadata: (pdfBase64: string, metadata: any) => Promise<PdfOperationResult>
 
-  // Local Storage Hub (MỚI)
+  // Local Storage Hub & Data Protection Layer
   storageGetInfo: () => Promise<StorageHubInfo>
   storageSetPath: (newPath: string) => Promise<{ success: boolean; path?: string; error?: string }>
   storageOpenExplorer: (subfolder?: string) => Promise<boolean>
   storageCreateBackup: () => Promise<{ success: boolean; backupPath?: string; error?: string }>
   storageCleanupTemp: () => Promise<{ success: boolean; freedBytesFormatted?: string }>
+  storageGetHealth: () => Promise<DataHealthReport>
+  storageRestoreBackup: (backupPath?: string) => Promise<{ success: boolean; restoredRecords?: number; error?: string }>
+  storageExportBackup: (targetDir?: string) => Promise<{ success: boolean; exportPath?: string; error?: string }>
+}
+
+export interface DataHealthReport {
+  status: 'healthy' | 'warning' | 'error'
+  schemaVersion: number
+  database: {
+    ok: boolean
+    message: string
+    path: string
+    sizeFormatted: string
+    partnerCount: number
+    historyCount: number
+    customTemplateCount: number
+  }
+  directories: {
+    ok: boolean
+    hubPath: string
+    missingDirs: string[]
+  }
+  backup: {
+    ok: boolean
+    backupCount: number
+    latestBackupDate?: string
+    latestBackupPath?: string
+  }
+  checkedAt: string
 }
 
 export interface StorageHubInfo {
@@ -358,9 +387,15 @@ export interface StorageHubInfo {
   documentsPath: string
   templatesPath: string
   backupsPath: string
+  cachePath: string
+  tempPath: string
+  recoveryPath: string
+  metadataPath: string
   totalSizeFormatted: string
   documentCount: number
   backupCount: number
+  schemaVersion: number
+  healthStatus: 'healthy' | 'warning' | 'error'
 }
 
 declare global {
@@ -368,3 +403,4 @@ declare global {
     api?: ElectronAPI
   }
 }
+

@@ -3,7 +3,7 @@
  * Hỗ trợ tài liệu có kích thước hỗn hợp (A4, A3, khổ ngang, khổ dọc) với hiệu năng O(1) sau khi khởi tạo.
  */
 
-import { PdfPageInfo } from '../../stores/pdfTools.store'
+import type { PdfPageInfo } from '../../../../shared/types'
 
 export interface PageLayoutMeta {
   index: number

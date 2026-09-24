@@ -840,6 +840,7 @@
 }
 
 .pdf-grid-card:hover {
+  transform: translateY(-5px);
   border-color: var(--accent);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
 }

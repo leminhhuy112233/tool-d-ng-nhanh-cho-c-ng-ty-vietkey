@@ -109,6 +109,7 @@ export class RenderManager {
       }
 
       const renderTask = page.render({
+        canvas,
         canvasContext: ctx,
         viewport
       })

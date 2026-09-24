@@ -287,7 +287,7 @@ export function ContractForm() {
       {/* Control Bar */}
       <FormModeTabs
         activeTab={activeTab}
-        onChangeTab={setActiveTab}
+        onTabChange={setActiveTab}
         onFillToday={handleFillToday}
       />
 
@@ -296,11 +296,8 @@ export function ContractForm() {
         <AiExtractCard
           title="Trợ lý AI bóc tách hợp đồng"
           description="Dán toàn bộ đoạn văn bản thông tin công ty từ Zalo, Email... AI sẽ tự trích xuất thông tin"
-          rawText={rawText}
           isParsing={isParsing}
-          onChangeText={setRawText}
-          onClear={() => setRawText('')}
-          onParse={handleAIParse}
+          onExtract={handleAIParse}
         />
       )}
 
@@ -521,7 +518,7 @@ export function ContractForm() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               marginBottom: '14px'
             }}
           >

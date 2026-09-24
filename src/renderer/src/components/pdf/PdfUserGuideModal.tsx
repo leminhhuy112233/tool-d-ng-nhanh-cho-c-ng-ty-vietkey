@@ -25,7 +25,8 @@ import {
   Search,
   PenTool,
   CheckCircle2,
-  FileDown
+  FileDown,
+  ChevronRight
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 

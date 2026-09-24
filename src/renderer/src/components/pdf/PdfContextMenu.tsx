@@ -19,8 +19,11 @@ interface PdfContextMenuProps {
   x: number
   y: number
   pageIndex: number
+  pageCount?: number
   onClose: () => void
-  onRotate: (degrees: number) => void
+  onRotate?: (degrees: number) => void
+  onRotateCw?: () => void
+  onRotateCcw?: () => void
   onDelete: () => void
   onExtract: () => void
   onDuplicate?: () => void
@@ -31,8 +34,11 @@ export function PdfContextMenu({
   x,
   y,
   pageIndex,
+  pageCount,
   onClose,
   onRotate,
+  onRotateCw,
+  onRotateCcw,
   onDelete,
   onExtract,
   onDuplicate,
@@ -93,7 +99,7 @@ export function PdfContextMenu({
       <button
         className="pdf-context-menu-item"
         onClick={() => {
-          onRotate(90)
+          onRotate?.(90) ?? onRotateCw?.()
           onClose()
         }}
       >
@@ -105,7 +111,7 @@ export function PdfContextMenu({
       <button
         className="pdf-context-menu-item"
         onClick={() => {
-          onRotate(-90)
+          onRotate?.(-90) ?? onRotateCcw?.()
           onClose()
         }}
       >
@@ -116,7 +122,7 @@ export function PdfContextMenu({
       <button
         className="pdf-context-menu-item"
         onClick={() => {
-          onRotate(180)
+          onRotate?.(180)
           onClose()
         }}
       >

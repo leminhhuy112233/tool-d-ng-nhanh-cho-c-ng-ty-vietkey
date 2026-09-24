@@ -49,9 +49,10 @@ export function Titlebar() {
           fontSize: '11.5px',
           fontWeight: 500,
           cursor: 'pointer',
-          WebkitAppRegion: 'no-drag',
-          transition: 'all 0.15s ease'
-        }}
+          transition: 'all 0.15s ease',
+          // @ts-ignore — Electron-specific CSS property for drag region
+          WebkitAppRegion: 'no-drag'
+        } as React.CSSProperties}
         title="Mở thanh tìm kiếm & lệnh nhanh (Ctrl + K)"
       >
         <span>Tìm lệnh, tài liệu, đối tác...</span>

@@ -84,7 +84,10 @@ export const IPC_CHANNELS = {
   STORAGE_SET_PATH: 'storage:set-path',
   STORAGE_OPEN_EXPLORER: 'storage:open-explorer',
   STORAGE_CREATE_BACKUP: 'storage:create-backup',
-  STORAGE_CLEANUP_TEMP: 'storage:cleanup-temp'
+  STORAGE_CLEANUP_TEMP: 'storage:cleanup-temp',
+  STORAGE_GET_HEALTH: 'storage:get-health',
+  STORAGE_RESTORE_BACKUP: 'storage:restore-backup',
+  STORAGE_EXPORT_BACKUP: 'storage:export-backup'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

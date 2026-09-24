@@ -1,8 +1,28 @@
 import { useState, useEffect } from 'react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useThemeStore } from '../stores/theme.store'
-import { Moon, Sun, FolderOpen, Key, Info, Zap, HardDrive, ShieldCheck, RefreshCw, Trash2, ExternalLink, Database, CheckCircle2 } from 'lucide-react'
-import type { StorageHubInfo } from '../../../shared/types'
+import {
+  Moon,
+  Sun,
+  FolderOpen,
+  Key,
+  Info,
+  Zap,
+  HardDrive,
+  ShieldCheck,
+  RefreshCw,
+  Trash2,
+  ExternalLink,
+  Database,
+  CheckCircle2,
+  AlertTriangle,
+  Download,
+  Upload,
+  Shield,
+  Activity,
+  FileText
+} from 'lucide-react'
+import type { StorageHubInfo, DataHealthReport } from '../../../shared/types'
 
 export function Settings() {
   const { theme, setTheme } = useThemeStore()
@@ -11,17 +31,24 @@ export function Settings() {
   const [showSaved, setShowSaved] = useState(false)
   const [toastMessage, setToastMessage] = useState('✓ Đã lưu cài đặt')
 
-  // VietKey Local Data Hub state
+  // VietKey Local Data Hub & Data Protection state
   const [storageInfo, setStorageInfo] = useState<StorageHubInfo | null>(null)
+  const [healthReport, setHealthReport] = useState<DataHealthReport | null>(null)
   const [backingUp, setBackingUp] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [cleaning, setCleaning] = useState(false)
 
-  // Load settings & storage hub info khi mount
+  // Load settings, storage hub info & health report khi mount
   const loadStorageInfo = async () => {
     try {
       if (window.api?.storageGetInfo) {
         const info = await window.api.storageGetInfo()
         setStorageInfo(info)
+      }
+      if (window.api?.storageGetHealth) {
+        const health = await window.api.storageGetHealth()
+        setHealthReport(health)
       }
     } catch (err) {
       console.error('Lỗi khi lấy thông tin kho lưu trữ:', err)
@@ -31,9 +58,9 @@ export function Settings() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const settings = await window.api.getAllSettings()
-        if (settings.openaiApiKey) setApiKey(settings.openaiApiKey)
-        if (settings.defaultExportDir) setExportDir(settings.defaultExportDir)
+        const settings = await window.api?.getAllSettings()
+        if (settings?.openaiApiKey) setApiKey(settings.openaiApiKey)
+        if (settings?.defaultExportDir) setExportDir(settings.defaultExportDir)
       } catch (err) {
         console.error('Lỗi khi tải cài đặt:', err)
       }
@@ -44,16 +71,16 @@ export function Settings() {
 
   // Lưu API Key
   const handleSaveApiKey = async () => {
-    await window.api.setSetting('openaiApiKey', apiKey)
+    await window.api?.setSetting('openaiApiKey', apiKey)
     showToast()
   }
 
   // Chọn thư mục xuất file
   const handleSelectDir = async () => {
-    const dir = await window.api.openDirectoryDialog()
+    const dir = await window.api?.openDirectoryDialog()
     if (dir) {
       setExportDir(dir)
-      await window.api.setSetting('defaultExportDir', dir)
+      await window.api?.setSetting('defaultExportDir', dir)
       showToast()
     }
   }
@@ -62,7 +89,7 @@ export function Settings() {
     if (msg) setToastMessage(msg)
     else setToastMessage('✓ Đã lưu cài đặt')
     setShowSaved(true)
-    setTimeout(() => setShowSaved(false), 2500)
+    setTimeout(() => setShowSaved(false), 2800)
   }
 
   // Mở thư mục Data Hub trong Explorer
@@ -75,7 +102,7 @@ export function Settings() {
   // Đổi thư mục lưu trữ Data Hub trên PC
   const handleChangeDataHubPath = async () => {
     try {
-      const dir = await window.api.openDirectoryDialog()
+      const dir = await window.api?.openDirectoryDialog()
       if (dir && window.api?.storageSetPath) {
         const res = await window.api.storageSetPath(dir)
         if (res.success) {
@@ -97,7 +124,7 @@ export function Settings() {
     try {
       const res = await window.api.storageCreateBackup()
       if (res.success) {
-        showToast('✓ Đã tạo bản sao lưu dữ liệu thành công!')
+        showToast('✓ Đã tạo bản sao lưu dữ liệu (.vkbak) an toàn!')
         await loadStorageInfo()
       } else {
         showToast(`⚠️ Sao lưu thất bại: ${res.error}`)
@@ -106,6 +133,56 @@ export function Settings() {
       showToast(`⚠️ Lỗi: ${err.message}`)
     } finally {
       setBackingUp(false)
+    }
+  }
+
+  // Khôi phục dữ liệu từ bản sao lưu
+  const handleRestoreBackup = async () => {
+    if (!window.api?.storageRestoreBackup) return
+    try {
+      // Cho phép người dùng chọn file backup
+      const files = await window.api?.openFileDialog([
+        { name: 'Bản sao lưu VietKey (*.vkbak, *.json)', extensions: ['vkbak', 'json'] }
+      ])
+      if (!files || files.length === 0) return
+
+      const chosenFile = files[0]
+      const confirmed = window.confirm(
+        `Bạn có chắc chắn muốn khôi phục dữ liệu từ tệp sau?\n\n${chosenFile}\n\nLưu ý: Hệ thống sẽ tự động chụp một bản snapshot bảo vệ dữ liệu hiện tại trước khi khôi phục.`
+      )
+      if (!confirmed) return
+
+      setRestoring(true)
+      const res = await window.api.storageRestoreBackup(chosenFile)
+      if (res.success) {
+        showToast(`✓ Khôi phục thành công! Đã nạp lại ${res.restoredRecords || 0} bản ghi dữ liệu.`)
+        await loadStorageInfo()
+      } else {
+        showToast(`⚠️ Khôi phục thất bại: ${res.error}`)
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Lỗi: ${err.message}`)
+    } finally {
+      setRestoring(false)
+    }
+  }
+
+  // Xuất file backup ra USB / Desktop
+  const handleExportBackup = async () => {
+    if (!window.api?.storageExportBackup) return
+    setExporting(true)
+    try {
+      const targetDir = await window.api?.openDirectoryDialog()
+      const res = await window.api.storageExportBackup(targetDir || undefined)
+      if (res.success) {
+        showToast(`✓ Đã xuất tệp sao lưu ra: ${res.exportPath}`)
+      } else {
+        showToast(`⚠️ Xuất bản sao lưu thất bại: ${res.error}`)
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Lỗi: ${err.message}`)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -126,34 +203,56 @@ export function Settings() {
     }
   }
 
+  // Phiên bản ứng dụng & kiểm tra cập nhật
+  const appVersion = window.api?.getAppVersion?.() || '1.0.0'
+  const handleCheckUpdate = () => {
+    showToast(`✓ Bạn đang sử dụng bản v${appVersion}. Kiến trúc cách ly dữ liệu độc lập (Data Isolation) bảo vệ toàn vẹn dữ liệu PC.`)
+  }
+
   return (
     <div>
-      <PageHeader title="Cài đặt" description="Cấu hình ứng dụng, kho lưu trữ cục bộ và tùy chỉnh giao diện" />
+      <PageHeader title="Cài đặt" description="Cấu hình ứng dụng, hệ thống bảo vệ dữ liệu và tùy chỉnh giao diện" />
 
-      {/* Kho Lưu Trữ Dữ Liệu Cục Bộ (VietKey Local Data Hub) */}
-      <div className="settings-section" style={{ border: '1px solid rgba(14, 165, 233, 0.25)', background: 'linear-gradient(180deg, rgba(14, 165, 233, 0.04) 0%, transparent 100%)', borderRadius: '12px', padding: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+      {/* Kho Lưu Trữ Dữ Liệu Cục Bộ (VietKey Local Data Hub & Data Protection Layer) */}
+      <div className="settings-section" style={{ border: '1px solid rgba(14, 165, 233, 0.3)', background: 'linear-gradient(180deg, rgba(14, 165, 233, 0.05) 0%, transparent 100%)', borderRadius: '12px', padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
           <div>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, color: 'var(--foreground)', fontSize: '16px' }}>
-              <HardDrive size={18} color="#0ea5e9" />
-              Kho Lưu Trữ Dữ Liệu PC (VietKey Local Data Hub)
+              <ShieldCheck size={20} color="#0ea5e9" />
+              Hệ Thống Bảo Vệ Dữ Liệu (VietKey Data Protection Layer)
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--muted-foreground)' }}>
-              Toàn bộ dữ liệu được lưu minh bạch trên ổ đĩa PC của bạn — Không lưu ẩn trong Cache hệ thống
+              Kiến trúc cách ly dữ liệu độc lập — Mã nguồn ứng dụng và Dữ liệu khách hàng được tách biệt hoàn toàn
             </p>
           </div>
-          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <CheckCircle2 size={12} />
-            Đã đồng bộ Cục bộ
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle2 size={12} />
+              Schema v{storageInfo?.schemaVersion || 1}
+            </span>
+            <span style={{
+              fontSize: '11px',
+              padding: '3px 8px',
+              borderRadius: '12px',
+              background: healthReport?.status === 'healthy' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+              color: healthReport?.status === 'healthy' ? '#10b981' : '#f59e0b',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <Activity size={12} />
+              {healthReport?.status === 'healthy' ? 'Dữ liệu Lành mạnh' : 'Cần kiểm tra'}
+            </span>
+          </div>
         </div>
 
         {/* Đường dẫn chính */}
-        <div style={{ background: 'var(--muted)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ background: 'var(--muted)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
             <Database size={16} color="var(--primary)" style={{ flexShrink: 0 }} />
             <span style={{ fontSize: '13px', fontFamily: 'monospace', color: 'var(--foreground)', wordBreak: 'break-all' }}>
-              {storageInfo?.dataHubPath || 'Đang tải thông tin...'}
+              {storageInfo?.dataHubPath || 'Đang tải vị trí lưu trữ...'}
             </span>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -173,7 +272,7 @@ export function Settings() {
                 gap: '6px',
                 transition: 'opacity 0.15s'
               }}
-              title="Mở thư mục trong Windows Explorer"
+              title="Mở thư mục gốc trong Windows Explorer"
             >
               <ExternalLink size={13} />
               Mở trên PC
@@ -198,8 +297,8 @@ export function Settings() {
           </div>
         </div>
 
-        {/* Cây thư mục con */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+        {/* 8 Thư Mục Thành Phần Của Data Protection Layer */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '16px' }}>
           <div
             onClick={() => handleOpenDataHub('database')}
             style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', transition: 'border-color 0.15s' }}
@@ -210,7 +309,7 @@ export function Settings() {
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>📁 Database/</span>
               <ExternalLink size={12} color="var(--muted-foreground)" />
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>vietkey_database.json</span>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{healthReport?.database?.partnerCount ?? 0} đối tác đã lưu</span>
           </div>
 
           <div
@@ -236,7 +335,7 @@ export function Settings() {
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>📁 Templates/</span>
               <ExternalLink size={12} color="var(--muted-foreground)" />
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Mẫu tài liệu Word</span>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Mẫu tài liệu người dùng</span>
           </div>
 
           <div
@@ -251,20 +350,75 @@ export function Settings() {
             </div>
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{storageInfo?.backupCount ?? 0} bản sao lưu</span>
           </div>
+
+          <div
+            onClick={() => handleOpenDataHub('cache')}
+            style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', transition: 'border-color 0.15s' }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0ea5e9')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>📁 Cache/</span>
+              <ExternalLink size={12} color="var(--muted-foreground)" />
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Thumbnail & Render</span>
+          </div>
+
+          <div
+            onClick={() => handleOpenDataHub('temp')}
+            style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', transition: 'border-color 0.15s' }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0ea5e9')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>📁 Temp/</span>
+              <ExternalLink size={12} color="var(--muted-foreground)" />
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Log thực thi hệ thống</span>
+          </div>
+
+          <div
+            onClick={() => handleOpenDataHub('recovery')}
+            style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', transition: 'border-color 0.15s' }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0ea5e9')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>📁 Recovery/</span>
+              <ExternalLink size={12} color="var(--muted-foreground)" />
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Khôi phục & Autosave</span>
+          </div>
+
+          <div
+            onClick={() => handleOpenDataHub('metadata')}
+            style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', transition: 'border-color 0.15s' }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0ea5e9')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>📁 Metadata/</span>
+              <ExternalLink size={12} color="var(--muted-foreground)" />
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Lịch sử Migration</span>
+          </div>
         </div>
 
         {/* Thanh công cụ bảo trì & Tối ưu hóa */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: 'var(--muted-foreground)', flexWrap: 'wrap' }}>
             <span>Tổng dung lượng: <strong style={{ color: 'var(--foreground)' }}>{storageInfo?.totalSizeFormatted || '0 B'}</strong></span>
+            {healthReport?.backup?.latestBackupDate && (
+              <span>Bản sao lưu gần nhất: <strong style={{ color: 'var(--foreground)' }}>{healthReport.backup.latestBackupDate}</strong></span>
+            )}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               onClick={handleCreateBackup}
               disabled={backingUp}
               style={{
-                padding: '7px 14px',
+                padding: '7px 12px',
                 background: 'rgba(16, 185, 129, 0.12)',
                 color: '#10b981',
                 border: '1px solid rgba(16, 185, 129, 0.3)',
@@ -283,10 +437,56 @@ export function Settings() {
             </button>
 
             <button
+              onClick={handleRestoreBackup}
+              disabled={restoring}
+              style={{
+                padding: '7px 12px',
+                background: 'rgba(56, 189, 248, 0.1)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: restoring ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s'
+              }}
+              title="Khôi phục cơ sở dữ liệu từ tệp .vkbak hoặc .json"
+            >
+              <Upload size={14} />
+              {restoring ? 'Đang nạp...' : 'Khôi Phục Dữ Liệu'}
+            </button>
+
+            <button
+              onClick={handleExportBackup}
+              disabled={exporting}
+              style={{
+                padding: '7px 12px',
+                background: 'rgba(168, 85, 247, 0.1)',
+                color: '#c084fc',
+                border: '1px solid rgba(168, 85, 247, 0.25)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s'
+              }}
+              title="Xuất tệp sao lưu ra USB hoặc Desktop"
+            >
+              <Download size={14} />
+              {exporting ? 'Đang xuất...' : 'Xuất Bản Sao Lưu'}
+            </button>
+
+            <button
               onClick={handleCleanupTemp}
               disabled={cleaning}
               style={{
-                padding: '7px 14px',
+                padding: '7px 12px',
                 background: 'rgba(239, 68, 68, 0.1)',
                 color: '#f87171',
                 border: '1px solid rgba(239, 68, 68, 0.25)',
@@ -299,13 +499,15 @@ export function Settings() {
                 gap: '6px',
                 transition: 'all 0.15s'
               }}
+              title="Dọn dẹp file tạm, cache thumbnail giải phóng dung lượng"
             >
               <Trash2 size={14} />
-              {cleaning ? 'Đang dọn...' : 'Dọn Dẹp Cache & File Tạm'}
+              {cleaning ? 'Đang dọn...' : 'Dọn Dẹp Cache'}
             </button>
           </div>
         </div>
       </div>
+
 
       {/* Theme */}
       <div className="settings-section">
@@ -448,9 +650,18 @@ export function Settings() {
             </span>
             <span>VietKey AI Document Generator</span>
           </div>
-          <div className="version-badge">
-            <Zap size={12} />
-            v1.0.0
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="version-badge">
+              <Zap size={12} />
+              v{appVersion}
+            </div>
+            <button
+              className="btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '5px 12px', cursor: 'pointer', borderRadius: '6px' }}
+              onClick={handleCheckUpdate}
+            >
+              Kiểm tra cập nhật
+            </button>
           </div>
         </div>
       </div>

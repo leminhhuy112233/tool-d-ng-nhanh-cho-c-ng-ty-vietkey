@@ -2,6 +2,7 @@ import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
+import { homedir } from 'os'
 import { app } from 'electron'
 import type { ContractData, QuotationData, AdvanceRequestData } from '../../shared/types'
 
@@ -27,19 +28,43 @@ export function formatRepresentativeName(
   }
 }
 
+/**
+ * Tìm đường dẫn file template chuẩn xác:
+ * 1. Ưu tiên mẫu tùy biến người dùng (User Templates) tại VietKey_Data/Templates/
+ * 2. Mẫu mặc định hệ thống (System Templates) đóng gói cùng ứng dụng
+ */
+export function resolveTemplatePath(fileName: string): string | null {
+  // 1. Kiểm tra mẫu người dùng trong VietKey_Data/Templates
+  try {
+    const userTplDir = join(homedir(), 'VietKey_Data', 'Templates')
+    const userTplPath = join(userTplDir, fileName)
+    if (existsSync(userTplPath)) return userTplPath
+  } catch {
+    // ignore
+  }
+
+  // 2. Mẫu hệ thống mặc định đi kèm bản cài
+  const candidatePaths = [
+    process.resourcesPath ? join(process.resourcesPath, 'templates', fileName) : '',
+    join(app.getAppPath(), 'templates', fileName),
+    join(process.cwd(), 'templates', fileName),
+    join(__dirname, '..', '..', 'templates', fileName),
+    join(__dirname, '..', 'templates', fileName)
+  ].filter(Boolean)
+
+  const found = candidatePaths.find((p) => existsSync(p))
+  return found || null
+}
+
 // ===== 1. Xuất Hợp đồng nguyên tắc =====
 export function generateContractDocx(
   data: ContractData,
   targetPath: string
 ): { success: boolean; error?: string } {
   try {
-    let templatePath = join(app.getAppPath(), 'templates', 'HopDongNguyenTac.docx')
-    if (!existsSync(templatePath)) {
-      templatePath = join(process.cwd(), 'templates', 'HopDongNguyenTac.docx')
-    }
-
-    if (!existsSync(templatePath)) {
-      return { success: false, error: `Không tìm thấy template tại: ${templatePath}` }
+    const templatePath = resolveTemplatePath('HopDongNguyenTac.docx')
+    if (!templatePath) {
+      return { success: false, error: 'Không tìm thấy template HopDongNguyenTac.docx trong hệ thống.' }
     }
 
     const benaFormatted = formatRepresentativeName(
@@ -106,18 +131,10 @@ export function generateQuotationDocx(
     const templateFileName = isWithNotes ? 'BaoGia_CoGhiChu.docx' : 'BaoGia.docx'
     console.log(`[generateQuotationDocx] Bắt đầu xuất báo giá: co_ghi_chu = ${isWithNotes} -> Template: ${templateFileName}`)
 
-    const candidatePaths = [
-      join(app.getAppPath(), 'templates', templateFileName),
-      join(process.cwd(), 'templates', templateFileName),
-      join(__dirname, '..', '..', 'templates', templateFileName),
-      join(__dirname, '..', 'templates', templateFileName),
-      join(process.resourcesPath || '', 'templates', templateFileName)
-    ]
-
-    const templatePath = candidatePaths.find((p) => p && existsSync(p))
+    const templatePath = resolveTemplatePath(templateFileName)
     if (!templatePath) {
-      console.error(`[generateQuotationDocx] Không tìm thấy file template ${templateFileName} trong các đường dẫn:`, candidatePaths)
-      return { success: false, error: `Không tìm thấy template tại: ${candidatePaths.filter(Boolean).join(' hoặc ')}` }
+      console.error(`[generateQuotationDocx] Không tìm thấy file template ${templateFileName}`)
+      return { success: false, error: `Không tìm thấy template ${templateFileName} trong hệ thống.` }
     }
 
     console.log(`[generateQuotationDocx] Đã tìm thấy template tại: ${templatePath}`)
@@ -166,13 +183,9 @@ export function generateAdvanceRequestDocx(
   targetPath: string
 ): { success: boolean; error?: string } {
   try {
-    let templatePath = join(app.getAppPath(), 'templates', 'DeNghiTamUng.docx')
-    if (!existsSync(templatePath)) {
-      templatePath = join(process.cwd(), 'templates', 'DeNghiTamUng.docx')
-    }
-
-    if (!existsSync(templatePath)) {
-      return { success: false, error: `Không tìm thấy template tại: ${templatePath}` }
+    const templatePath = resolveTemplatePath('DeNghiTamUng.docx')
+    if (!templatePath) {
+      return { success: false, error: 'Không tìm thấy template DeNghiTamUng.docx trong hệ thống.' }
     }
 
     const content = readFileSync(templatePath, 'binary')

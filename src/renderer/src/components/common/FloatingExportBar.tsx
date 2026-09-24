@@ -44,7 +44,7 @@ export function FloatingExportBar({
         padding: '14px 20px',
         display: 'flex',
         alignItems: 'center',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         gap: '20px',
         boxShadow: '0 12px 36px rgba(0, 0, 0, 0.18)',
         zIndex: 50

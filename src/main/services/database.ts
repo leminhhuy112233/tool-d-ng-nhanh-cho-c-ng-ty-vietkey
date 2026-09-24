@@ -1,9 +1,12 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'fs'
 import type { PartnerProfile, ExportHistoryRecord, CustomTemplateDef } from '../../shared/types'
+import { storageManager } from './storage-manager'
+import { executeDatabaseMigration, CURRENT_SCHEMA_VERSION } from './migration'
 
 interface StoreData {
+  _schemaVersion?: number
   settings: {
     theme: string
     openaiApiKey: string
@@ -24,6 +27,7 @@ interface StoreData {
 }
 
 const DEFAULT_DATA: StoreData = {
+  _schemaVersion: CURRENT_SCHEMA_VERSION,
   settings: {
     theme: 'dark',
     openaiApiKey: '',
@@ -41,10 +45,7 @@ let data: StoreData = { ...DEFAULT_DATA }
 
 function getStorePath(): string {
   if (!storePath) {
-    const pcDir = join(app.getPath('home'), 'VietKey_Data', 'Database')
-    if (!existsSync(pcDir)) {
-      mkdirSync(pcDir, { recursive: true })
-    }
+    const pcDir = storageManager.getDatabaseDir()
     const pcDbPath = join(pcDir, 'vietkey_database.json')
     const legacyPath = join(app.getPath('userData'), 'vietkey-docgen-config.json')
 
@@ -68,15 +69,53 @@ export function setDatabaseStorePath(newPath: string): void {
   data = loadFromDisk()
 }
 
+/**
+ * Đọc dữ liệu từ đĩa có bảo vệ chống hỏng hóc (Corruption Shield)
+ */
 function loadFromDisk(): StoreData {
   const filePath = getStorePath()
   try {
     if (existsSync(filePath)) {
       const raw = readFileSync(filePath, 'utf-8')
-      return { ...DEFAULT_DATA, ...JSON.parse(raw) }
+      const parsed = JSON.parse(raw)
+      return { ...DEFAULT_DATA, ...parsed }
     }
-  } catch (err) {
-    console.error('Lỗi đọc config file:', err)
+  } catch (err: any) {
+    console.error('[Database] ⚠️ Cảnh báo: File database bị lỗi định dạng JSON:', err)
+
+    // Cơ chế Tự động cứu nạn dữ liệu (Automated Crash Recovery):
+    // 1. Sao chép file hỏng sang Recovery/ để người dùng không bị mất dữ liệu thô
+    try {
+      const recoveryDir = storageManager.getRecoveryDir()
+      const corruptedBackupPath = join(recoveryDir, `corrupted_database_${Date.now()}.json.bak`)
+      if (existsSync(filePath)) {
+        copyFileSync(filePath, corruptedBackupPath)
+        console.log(`[Database] Đã lưu bản sao database hỏng vào: ${corruptedBackupPath}`)
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Tìm bản sao lưu gần nhất trong Backups/ để tự phục hồi
+    try {
+      const backupDir = storageManager.getBackupsDir()
+      if (existsSync(backupDir)) {
+        const backups = readdirSync(backupDir)
+          .filter((f) => f.endsWith('.json') || f.endsWith('.vkbak'))
+          .map((f) => ({ path: join(backupDir, f), time: statSync(join(backupDir, f)).mtime.getTime() }))
+          .sort((a, b) => b.time - a.time)
+
+        if (backups.length > 0) {
+          const latestBackup = backups[0].path
+          console.log(`[Database] 🔄 Đang tự động cứu nạn từ bản sao lưu gần nhất: ${latestBackup}`)
+          const backupContent = readFileSync(latestBackup, 'utf-8')
+          const recovered = JSON.parse(backupContent)
+          return { ...DEFAULT_DATA, ...recovered }
+        }
+      }
+    } catch (recErr) {
+      console.error('[Database] Không thể tự cứu nạn từ bản backup:', recErr)
+    }
   }
   return { ...DEFAULT_DATA }
 }
@@ -85,19 +124,38 @@ function saveToDisk(): void {
   try {
     writeFileSync(getStorePath(), JSON.stringify(data, null, 2), 'utf-8')
   } catch (err) {
-    console.error('Lỗi ghi config file:', err)
+    console.error('Lỗi ghi database file:', err)
   }
 }
 
 // ===== Public API =====
 
-export function initStore(): void {
+export async function initStore(): Promise<void> {
   data = loadFromDisk()
+
+  // Chạy Database Migration có bảo vệ trước
+  const backupDir = storageManager.getBackupsDir()
+  const recoveryDir = storageManager.getRecoveryDir()
+  const metadataDir = storageManager.getMetadataDir()
+
+  const migrationOutcome = await executeDatabaseMigration(data, backupDir, recoveryDir, metadataDir)
+  data = migrationOutcome.data
+
   data.settings = { ...DEFAULT_DATA.settings, ...data.settings }
   data.partners = data.partners || []
   data.history = data.history || []
   data.customTemplates = data.customTemplates || []
+  data._schemaVersion = CURRENT_SCHEMA_VERSION
+
   saveToDisk()
+}
+
+export function reloadStoreFromDisk(): void {
+  data = loadFromDisk()
+}
+
+export function getStoreDataSnapshot(): StoreData {
+  return JSON.parse(JSON.stringify(data))
 }
 
 // ===== Settings Helpers =====
@@ -142,7 +200,7 @@ export function savePartner(profile: Omit<PartnerProfile, 'id' | 'updatedAt'>): 
     data.partners.unshift(updatedRecord)
   }
 
-  // Keep top 100 partners
+  // Giữ lại top 100 đối tác gần nhất
   data.partners = data.partners.slice(0, 100)
   saveToDisk()
 }
@@ -160,7 +218,7 @@ export function addHistoryRecord(record: Omit<ExportHistoryRecord, 'id' | 'creat
   }
 
   data.history.unshift(newRecord)
-  // Keep top 50 recent exports
+  // Giữ lại top 50 lịch sử xuất gần nhất
   data.history = data.history.slice(0, 50)
   saveToDisk()
 }
@@ -176,12 +234,9 @@ export function clearHistory(): void {
 }
 
 // ===== Custom Dynamic Template Store Helpers =====
-function getCustomTemplatesDir(): string {
-  const dir = join(app.getPath('userData'), 'custom_templates')
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true })
-  }
-  return dir
+// Mẫu người dùng (User Templates) được lưu trữ tại VietKey_Data/Templates/
+function getUserTemplatesDir(): string {
+  return storageManager.getTemplatesDir()
 }
 
 export function getCustomTemplates(): CustomTemplateDef[] {
@@ -196,7 +251,7 @@ export function saveCustomTemplate(
   templateData: Omit<CustomTemplateDef, 'id' | 'createdAt' | 'updatedAt'>,
   processedDocxBase64?: string
 ): CustomTemplateDef {
-  const templatesDir = getCustomTemplatesDir()
+  const templatesDir = getUserTemplatesDir()
   const id = `tpl_${Date.now()}`
   const targetDocxName = `${id}.docx`
   const targetDocxPath = join(templatesDir, targetDocxName)
@@ -206,7 +261,7 @@ export function saveCustomTemplate(
     const buf = Buffer.from(processedDocxBase64, 'base64')
     writeFileSync(targetDocxPath, buf)
   } else if (existsSync(templateData.docxFilePath)) {
-    // Nếu không, sao chép file gốc vào thư mục custom_templates của app
+    // Nếu không, sao chép file gốc vào thư mục Templates của VietKey_Data
     const buf = readFileSync(templateData.docxFilePath)
     writeFileSync(targetDocxPath, buf)
   }
@@ -231,4 +286,3 @@ export function deleteCustomTemplate(id: string): boolean {
   saveToDisk()
   return data.customTemplates.length < beforeLen
 }
-

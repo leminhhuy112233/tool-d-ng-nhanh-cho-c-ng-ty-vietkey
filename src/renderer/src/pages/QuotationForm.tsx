@@ -246,8 +246,9 @@ export function QuotationForm() {
   }
 
   // AI Parse Quotation
-  const handleAIParse = async () => {
-    if (!rawText.trim()) {
+  const handleAIParse = async (text?: string) => {
+    const inputText = text || rawText
+    if (!inputText.trim()) {
       showToast('error', 'Vui lòng dán danh sách hàng hóa vào trước!')
       return
     }
@@ -259,7 +260,7 @@ export function QuotationForm() {
 
     setIsParsing(true)
     try {
-      const parsed = await window.api.parseQuotationTextWithAI(rawText)
+      const parsed = await window.api.parseQuotationTextWithAI(inputText)
 
       setFormData((prev) => {
         const next = { ...prev }
@@ -385,7 +386,7 @@ export function QuotationForm() {
   }
 
   // Phím tắt Ctrl + Enter để xuất file
-  useExportShortcut(handleExportDocx, [formData])
+  useExportShortcut(handleExportDocx, isExporting)
 
 
 
@@ -481,7 +482,7 @@ export function QuotationForm() {
       {/* Control Bar */}
       <FormModeTabs
         activeTab={activeTab}
-        onChangeTab={setActiveTab}
+        onTabChange={setActiveTab}
         onFillToday={handleFillToday}
       />
 
@@ -490,11 +491,8 @@ export function QuotationForm() {
         <AiExtractCard
           title="Trợ lý AI bóc tách báo giá"
           description="Dán văn bản hoặc bảng giá thô từ Zalo/Excel... AI sẽ tự phân tích và điền vào bảng"
-          rawText={rawText}
           isParsing={isParsing}
-          onChangeText={setRawText}
-          onClear={() => setRawText('')}
-          onParse={handleAIParse}
+          onExtract={handleAIParse}
         />
       )}
 
@@ -527,13 +525,12 @@ export function QuotationForm() {
               required
               value={formData.ten_khach_hang}
               placeholder="Nhập tên khách hàng..."
-              error={errors.ten_khach_hang}
+              isError={errors.ten_khach_hang}
               onChange={(val) => {
                 if (errors.ten_khach_hang) setErrors((prev) => ({ ...prev, ten_khach_hang: false }))
                 handleCustomerChange(val)
               }}
               onSelectPartner={selectPartnerSuggestion}
-              partners={filterPartners(formData.ten_khach_hang)}
             />
 
             <DateInputGroup

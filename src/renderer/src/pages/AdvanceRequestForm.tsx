@@ -249,7 +249,7 @@ export function AdvanceRequestForm() {
   }
 
   // Phím tắt Ctrl + Enter để xuất file
-  useExportShortcut(handleExportDocx, [formData])
+  useExportShortcut(handleExportDocx, isExporting)
 
 
 
@@ -329,7 +329,7 @@ export function AdvanceRequestForm() {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           background: 'var(--card)',
           border: '1px solid var(--border)',
           borderRadius: '12px',
@@ -397,13 +397,12 @@ export function AdvanceRequestForm() {
               required
               value={formData.ten_cong_ty_khach}
               placeholder="Nhập tên công ty đối tác..."
-              error={errors.ten_cong_ty_khach}
+              isError={errors.ten_cong_ty_khach}
               onChange={(val) => {
                 if (errors.ten_cong_ty_khach) setErrors((prev) => ({ ...prev, ten_cong_ty_khach: false }))
                 handleCustomerChange(val)
               }}
               onSelectPartner={selectPartnerSuggestion}
-              partners={filterPartners(formData.ten_cong_ty_khach)}
             />
 
             <DateInputGroup
@@ -582,7 +581,7 @@ export function AdvanceRequestForm() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               marginTop: '12px',
               paddingTop: '10px',
               borderTop: '1px solid var(--border)'

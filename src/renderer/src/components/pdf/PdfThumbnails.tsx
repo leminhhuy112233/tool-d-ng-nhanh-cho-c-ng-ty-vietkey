@@ -153,7 +153,7 @@ export function PdfSidebarThumbnails({ onDeletePage, onRotatePage, onExtractPage
       canvas.style.height = `${viewport.height / dpr}px`
       const ctx = canvas.getContext('2d', { alpha: false })
       if (ctx) {
-        const task = page.render({ canvasContext: ctx, viewport })
+        const task = page.render({ canvas, canvasContext: ctx, viewport })
         thumbTasksRef.current.set(pageIndex, task)
         await task.promise
         renderedThumbsRef.current.add(pageIndex)
@@ -678,7 +678,7 @@ export function PdfThumbnailGrid({
       canvas.style.height = `${viewport.height / dpr}px`
       const ctx = canvas.getContext('2d', { alpha: false })
       if (ctx) {
-        const task = page.render({ canvasContext: ctx, viewport })
+        const task = page.render({ canvas, canvasContext: ctx, viewport })
         gridTasksRef.current.set(pageIndex, task)
         await task.promise
         renderedGridThumbsRef.current.add(pageIndex)
@@ -796,11 +796,10 @@ export function PdfThumbnailGrid({
           const isDropTarget = dragOver === i
 
           return (
-            <motion.div
+            <div
               key={i}
               data-grid-index={i}
               className={`pdf-grid-card ${isSelected ? 'selected' : ''} ${isDropTarget ? 'drag-over' : ''}`}
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
               onClick={() => togglePageSelect(i)}
               onDoubleClick={() => handleDoubleClick(i)}
               onContextMenu={(e) => {
@@ -854,7 +853,7 @@ export function PdfThumbnailGrid({
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )
         })}
       </div>

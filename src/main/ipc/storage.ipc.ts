@@ -27,4 +27,20 @@ export function registerStorageHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.STORAGE_CLEANUP_TEMP, async () => {
     return await storageManager.cleanupTemp()
   })
+
+  // Kiểm tra sức khỏe dữ liệu (Data Health Check)
+  ipcMain.handle(IPC_CHANNELS.STORAGE_GET_HEALTH, async () => {
+    return await storageManager.checkDataHealth()
+  })
+
+  // Khôi phục dữ liệu từ bản sao lưu
+  ipcMain.handle(IPC_CHANNELS.STORAGE_RESTORE_BACKUP, async (_event, backupPath?: string) => {
+    return await storageManager.restoreBackup(backupPath)
+  })
+
+  // Xuất bản sao lưu ra ngoài (USB/Desktop)
+  ipcMain.handle(IPC_CHANNELS.STORAGE_EXPORT_BACKUP, async (_event, targetDir?: string) => {
+    return await storageManager.exportBackup(targetDir)
+  })
 }
+

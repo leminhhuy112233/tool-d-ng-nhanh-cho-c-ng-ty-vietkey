@@ -10,6 +10,10 @@
     "predev": "node -e \"try{require('child_process').execSync('taskkill /F /IM electron.exe',{stdio:'ignore'});}catch(e){}\"",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "build:win": "electron-vite build && electron-builder --win --x64",
+    "build:portable": "electron-vite build && electron-builder --win portable --x64",
+    "build:all": "electron-vite build && electron-builder --win nsis portable --x64",
+    "build:dir": "electron-vite build && electron-builder --win --dir --x64",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "benchmark": "node scripts/pdf-qa-benchmark.mjs",
@@ -24,6 +28,7 @@
     "docxtemplater": "^3.56.2",
     "fabric": "^7.4.0",
     "framer-motion": "^12.43.0",
+    "lodash": "^4.18.1",
     "lucide-react": "^0.475.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.3.289",
@@ -54,14 +59,42 @@
     "appId": "com.vietkey.docgen",
     "productName": "VietKey DocGen",
     "directories": {
-      "buildResources": "build"
+      "buildResources": "build",
+      "output": "dist"
     },
     "files": [
-      "out/**/*",
-      "!node_modules"
+      "out/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "templates",
+        "to": "templates",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "VietKey DocGen",
+      "uninstallDisplayName": "VietKey DocGen",
+      "runAfterFinish": true,
+      "artifactName": "${productName} Setup ${version}.${ext}"
     }
   }
 }

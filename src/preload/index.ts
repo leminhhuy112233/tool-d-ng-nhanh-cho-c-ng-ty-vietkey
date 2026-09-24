@@ -81,7 +81,13 @@ const api: ElectronAPI = {
   ) => ipcRenderer.invoke(IPC_CHANNELS.DOCUMENT_EXPORT_CUSTOM, templateId, data, targetPath, exportType),
 
   // App info
-  getAppVersion: () => '1.0.0',
+  getAppVersion: () => {
+    try {
+      return ipcRenderer.sendSync('get-app-version-sync') || '1.0.0'
+    } catch {
+      return '1.0.0'
+    }
+  },
 
   // PDF Tools
   pdfOpenFile: () => ipcRenderer.invoke(IPC_CHANNELS.PDF_OPEN_FILE),
@@ -129,13 +135,19 @@ const api: ElectronAPI = {
   pdfUpdateMetadata: (pdfBase64: string, metadata: any) =>
     ipcRenderer.invoke(IPC_CHANNELS.PDF_UPDATE_METADATA, pdfBase64, metadata),
 
-  // Local Storage Hub (MỚI)
+  // Local Storage Hub & Data Protection Layer
   storageGetInfo: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_GET_INFO),
   storageSetPath: (newPath: string) => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_SET_PATH, newPath),
   storageOpenExplorer: (subfolder?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.STORAGE_OPEN_EXPLORER, subfolder),
   storageCreateBackup: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_CREATE_BACKUP),
-  storageCleanupTemp: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_CLEANUP_TEMP)
+  storageCleanupTemp: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_CLEANUP_TEMP),
+  storageGetHealth: () => ipcRenderer.invoke(IPC_CHANNELS.STORAGE_GET_HEALTH),
+  storageRestoreBackup: (backupPath?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.STORAGE_RESTORE_BACKUP, backupPath),
+  storageExportBackup: (targetDir?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.STORAGE_EXPORT_BACKUP, targetDir)
 }
 
 contextBridge.exposeInMainWorld('api', api)
+

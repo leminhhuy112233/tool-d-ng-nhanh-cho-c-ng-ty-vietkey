@@ -253,7 +253,7 @@ export function DynamicForm() {
   }
 
   if (isLoading) {
-    return <LoadingOverlay isVisible={true} message="Đang nạp cấu hình mẫu văn bản..." />
+    return <LoadingOverlay isVisible={true} title="Đang nạp cấu hình mẫu văn bản..." />
   }
 
   if (!template) {
@@ -345,8 +345,7 @@ export function DynamicForm() {
       <PageHeader
         title={template.name}
         description={template.description || `Mẫu văn bản tùy biến gồm ${template.fields.length} trường thông tin`}
-        icon={FileText}
-        actions={
+      >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
               onClick={() => navigate('/templates')}
@@ -420,8 +419,7 @@ export function DynamicForm() {
               {isExporting ? 'Đang xuất...' : 'Xuất Văn Bản Word'}
             </button>
           </div>
-        }
-      />
+      </PageHeader>
 
       {/* Main Form Fields Container */}
       <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>

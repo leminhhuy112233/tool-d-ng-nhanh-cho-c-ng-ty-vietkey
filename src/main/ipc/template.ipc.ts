@@ -16,11 +16,15 @@ import {
 import { analyzeDocxTemplate } from '../services/template-analyzer'
 
 function getTemplatesDirectory(): string {
-  let templateDir = join(app.getAppPath(), 'templates')
-  if (!existsSync(templateDir)) {
-    templateDir = join(process.cwd(), 'templates')
-  }
-  return templateDir
+  const candidateDirs = [
+    process.resourcesPath ? join(process.resourcesPath, 'templates') : '',
+    join(app.getAppPath(), 'templates'),
+    join(process.cwd(), 'templates'),
+    join(__dirname, '..', '..', 'templates')
+  ].filter(Boolean)
+
+  const found = candidateDirs.find((d) => existsSync(d))
+  return found || join(process.cwd(), 'templates')
 }
 
 export function registerTemplateHandlers(): void {
