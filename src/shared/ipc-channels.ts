@@ -50,13 +50,17 @@ export const IPC_CHANNELS = {
   TEMPLATE_IMPORT: 'template:import',
   TEMPLATE_DELETE: 'template:delete',
 
-  // Custom Dynamic Template & AI Red-Text Generator (MỚI)
+  // Custom Dynamic Template & AI Red-Text Generator
   TEMPLATE_ANALYZE: 'template:analyze',
   TEMPLATE_CUSTOM_LIST: 'template:custom-list',
   TEMPLATE_CUSTOM_SAVE: 'template:custom-save',
+  TEMPLATE_CUSTOM_UPDATE: 'template:custom-update',
+  TEMPLATE_CUSTOM_VERSIONS: 'template:custom-versions',
+  TEMPLATE_CUSTOM_ROLLBACK: 'template:custom-rollback',
   TEMPLATE_CUSTOM_DELETE: 'template:custom-delete',
   TEMPLATE_CUSTOM_GET: 'template:custom-get',
   DOCUMENT_EXPORT_CUSTOM: 'document:export-custom',
+  DOCUMENT_RENDER_PREVIEW_DOCX: 'document:render-preview-docx',
 
   // PDF Tools
   PDF_OPEN_FILE: 'pdf:open-file',

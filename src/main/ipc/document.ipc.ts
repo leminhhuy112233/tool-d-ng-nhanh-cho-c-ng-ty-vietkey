@@ -1,7 +1,13 @@
 import { ipcMain } from 'electron'
 import { basename } from 'path'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
-import { generateContractDocx, generateQuotationDocx, generateAdvanceRequestDocx, generateCustomDocx } from '../services/docx-engine'
+import {
+  generateContractDocx,
+  generateQuotationDocx,
+  generateAdvanceRequestDocx,
+  generateCustomDocx,
+  renderPreviewDocxBuffer
+} from '../services/docx-engine'
 import { convertDocxToPdf } from '../services/pdf-converter'
 import { parseTextWithAI, parseQuotationTextWithAI } from '../services/ai-parser'
 import { addHistoryRecord, getCustomTemplateById } from '../services/database'
@@ -210,6 +216,43 @@ export function registerDocumentHandlers(): void {
         filePath: targetPath,
         pdfPath: pdfRes.success ? actualPdfPath : undefined,
         error: pdfRes.success ? undefined : `Đã xuất file Word thành công, nhưng gặp lỗi PDF: ${pdfRes.error}`
+      }
+    }
+  )
+
+  // 7. Render Preview In-Memory DOCX (Zero disk I/O, siêu tốc độ cho Preview 1:1)
+  ipcMain.handle(
+    IPC_CHANNELS.DOCUMENT_RENDER_PREVIEW_DOCX,
+    async (
+      _event,
+      type: 'quotation' | 'contract' | 'advance' | 'custom',
+      data: any,
+      customTemplateId?: string
+    ) => {
+      try {
+        let customTplPath: string | undefined = undefined
+        if (type === 'custom' && customTemplateId) {
+          const tpl = getCustomTemplateById(customTemplateId)
+          if (!tpl) {
+            return { success: false, error: 'Không tìm thấy mẫu tùy biến.' }
+          }
+          customTplPath = tpl.docxFilePath
+        }
+
+        const res = renderPreviewDocxBuffer(type, data, customTplPath)
+        if (!res.success || !res.buffer) {
+          return { success: false, error: res.error || 'Không thể tạo bản xem trước DOCX.' }
+        }
+
+        const base64 = res.buffer.toString('base64')
+        return {
+          success: true,
+          docxBase64: base64,
+          base64Buffer: base64
+        }
+      } catch (err: any) {
+        console.error('Lỗi render preview docx:', err)
+        return { success: false, error: err.message || 'Lỗi không xác định khi tạo preview.' }
       }
     }
   )

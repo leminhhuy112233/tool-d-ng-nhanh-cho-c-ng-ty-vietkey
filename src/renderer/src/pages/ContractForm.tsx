@@ -8,12 +8,16 @@ import { DateInputGroup } from '../components/common/DateInputGroup'
 import { FormModeTabs } from '../components/common/FormModeTabs'
 import { AiExtractCard } from '../components/common/AiExtractCard'
 import { PartnerAutocompleteInput } from '../components/common/PartnerAutocompleteInput'
+import { DocxNativePreviewPane } from '../components/preview/DocxNativePreviewPane'
 import {
   Download,
   Building2,
   UserCheck,
   RotateCcw,
-  FileCheck
+  FileCheck,
+  RefreshCw,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import type { ContractData, ExportFileType, PartnerProfile } from '../../../shared/types'
 import { DEFAULT_BEN_B } from '../../../shared/types'
@@ -25,6 +29,7 @@ export function ContractForm() {
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual')
   const [isParsing, setIsParsing] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [showPreview, setShowPreview] = useState<boolean>(true)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   // Shared Toast & Chime Sound
@@ -129,7 +134,7 @@ export function ContractForm() {
     }
 
     if (!window.api?.exportContract) {
-      showToast('error', 'Vui lòng khởi chạy ứng dụng bằng lệnh "npm run dev" trong Terminal!')
+      showToast('error', 'Chức năng xuất file chỉ khả dụng trong ứng dụng Desktop VietKey DocGen.')
       return
     }
 
@@ -208,7 +213,7 @@ export function ContractForm() {
   useExportShortcut(handleExportDocx, isExporting)
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', paddingBottom: '80px' }}>
+    <div style={{ maxWidth: showPreview ? '100%' : '1100px', margin: '0 auto', paddingBottom: '80px', transition: 'max-width 0.2s ease' }}>
       {/* High-tech Animated Loading Overlay */}
       <LoadingOverlay
         isVisible={isExporting}
@@ -260,6 +265,16 @@ export function ContractForm() {
           </button>
 
           <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowPreview(!showPreview)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '10px', fontSize: '13.5px', fontWeight: 600 }}
+          >
+            {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
+            <span>{showPreview ? 'Ẩn xem trước' : 'Xem trước'}</span>
+          </button>
+
+          <button
             onClick={handleExportDocx}
             disabled={isExporting}
             style={{
@@ -273,12 +288,18 @@ export function ContractForm() {
               borderRadius: '10px',
               fontSize: '14px',
               fontWeight: 700,
-              cursor: 'pointer',
+              cursor: isExporting ? 'not-allowed' : 'pointer',
+              opacity: isExporting ? 0.7 : 1,
               boxShadow: '0 4px 14px rgba(178, 213, 229, 0.4)',
-              fontFamily: "'Inter', sans-serif"
+              fontFamily: "'Inter', sans-serif",
+              transition: 'all 0.15s ease'
             }}
           >
-            <Download size={18} color="var(--primary-foreground)" />
+            {isExporting ? (
+              <RefreshCw size={18} className="animate-spin" color="var(--primary-foreground)" />
+            ) : (
+              <Download size={18} color="var(--primary-foreground)" />
+            )}
             {isExporting ? 'Đang xuất file...' : `Xuất Hợp Đồng (${formData.export_type.toUpperCase()})`}
           </button>
         </div>
@@ -301,10 +322,12 @@ export function ContractForm() {
         />
       )}
 
-      {/* Main Contract Form */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* GROUP 0: CẤU HÌNH FILE & ĐỊNH DẠNG XUẤT */}
-        <ExportConfigSection
+      {/* Main Container: Split-Screen Side-by-Side Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: showPreview ? '1fr 1.05fr' : '1fr', gap: '20px', alignItems: 'start' }}>
+        {/* CỘT TRÁI: FORM NHẬP LIỆU */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+          {/* GROUP 0: CẤU HÌNH FILE & ĐỊNH DẠNG XUẤT */}
+          <ExportConfigSection
           fileName={formData.file_name}
           onChangeFileName={(val) => setFormData((prev) => ({ ...prev, file_name: val }))}
           exportType={formData.export_type}
@@ -656,7 +679,20 @@ export function ContractForm() {
         </div>
       </div>
 
-      {/* Floating Export Button Bar */}
+      {/* CỘT PHẢI: BẢN XEM TRƯỚC DOCX NGUYÊN BẢN (CHÍNH XÁC 1:1 WORD) */}
+      {showPreview && (
+        <div style={{ position: 'sticky', top: '16px', height: 'calc(100vh - 100px)', minWidth: 0 }}>
+          <DocxNativePreviewPane
+            title={`Hợp Đồng: ${formData.so_hd || 'Xem trước'}`}
+            docType="contract"
+            data={formData}
+            onClosePreview={() => setShowPreview(false)}
+            onExportWord={handleExportDocx}
+          />
+        </div>
+      )}
+    </div>
+
       {/* Floating Action Bar */}
       <FloatingExportBar
         title={`Hợp đồng: ${formData.bena_ten_cong_ty || 'Chưa nhập Bên A'}`}
@@ -665,6 +701,8 @@ export function ContractForm() {
         isExporting={isExporting}
         onExport={handleExportDocx}
         buttonLabel={isExporting ? 'Đang tạo file...' : `Tạo & Xuất Hợp Đồng (${formData.export_type.toUpperCase()})`}
+        onTogglePreview={() => setShowPreview(!showPreview)}
+        isPreviewOpen={showPreview}
       />
 
       {/* Reusable Toast Notification */}

@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { Scissors, Trash2, Download, X } from 'lucide-react'
+import { Scissors, Trash2, Download, X, Plus } from 'lucide-react'
 
 // ===== Delete Pages Dialog =====
 interface DeleteDialogProps {
@@ -250,8 +250,8 @@ export function SplitPdfDialog({ pageCount, onConfirm, onClose }: SplitDialogPro
                   )}
                 </div>
               ))}
-              <button className="pdf-btn pdf-btn-sm" onClick={addCustomRange}>
-                + Thêm phần
+              <button className="pdf-btn pdf-btn-sm" onClick={addCustomRange} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Plus size={14} /> Thêm khoảng trang
               </button>
             </div>
           )}

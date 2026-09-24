@@ -92,6 +92,14 @@ export function PdfSignatureModal({
     return `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
   })
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   // ===== CANVAS DRAW LOGIC =====
   const initDrawCanvas = useCallback(() => {
     const canvas = drawCanvasRef.current

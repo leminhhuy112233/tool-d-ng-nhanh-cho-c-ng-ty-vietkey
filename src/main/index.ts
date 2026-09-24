@@ -25,7 +25,7 @@ function logApp(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any): 
     const logPath = join(tempDir, 'main-process.log')
     appendFileSync(logPath, logLine, 'utf-8')
   } catch (err) {
-    console.error('Lỗi ghi log file:', err)
+    console.error('Failed to write main-process.log:', err)
   }
 }
 
@@ -55,11 +55,11 @@ process.on('unhandledRejection', (reason: any) => {
 // Khóa đơn tiến trình (Single Instance Lock) — Ngăn ngừa mở nhiều bản sao gây xung đột
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
-  logApp('WARN', 'Phát hiện bản sao ứng dụng khác đang chạy. Tiến trình thứ hai sẽ tự động đóng.')
+  logApp('WARN', 'Second instance detected. Quitting duplicate process.')
   app.quit()
 } else {
   app.on('second-instance', () => {
-    logApp('INFO', 'Nhận tín hiệu kích hoạt từ tiến trình thứ hai. Focus lại cửa sổ chính.')
+    logApp('INFO', 'Second instance triggered. Focusing main window.')
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.show()
@@ -81,7 +81,7 @@ function resolveAppIcon(): string | undefined {
 }
 
 function createWindow(): void {
-  logApp('INFO', 'Đang tạo cửa sổ chính BrowserWindow...')
+  logApp('INFO', 'Creating main BrowserWindow...')
 
   const iconPath = resolveAppIcon()
 
@@ -105,7 +105,7 @@ function createWindow(): void {
 
   // Hiển thị cửa sổ mượt mà khi đã sẵn sàng
   mainWindow.on('ready-to-show', () => {
-    logApp('INFO', 'Cửa sổ giao diện đã sẵn sàng (ready-to-show). Hiển thị cửa sổ.')
+    logApp('INFO', 'Main window ready-to-show. Displaying window.')
     mainWindow?.show()
     mainWindow?.focus()
   })
@@ -113,7 +113,7 @@ function createWindow(): void {
   // Fallback an toàn: nếu sau 3.5s sự kiện ready-to-show chưa kích hoạt, buộc hiển thị cửa sổ
   const fallbackShowTimer = setTimeout(() => {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-      logApp('WARN', 'ready-to-show timeout fallback -> Buộc hiển thị cửa sổ.')
+      logApp('WARN', 'ready-to-show timeout fallback -> Force showing window.')
       mainWindow.show()
       mainWindow.focus()
     }
@@ -126,7 +126,7 @@ function createWindow(): void {
 
   // ===== Lá Chắn Chống Treo Ứng Dụng (Anti-Freeze & Unresponsive Watchdog) =====
   mainWindow.on('unresponsive', () => {
-    logApp('WARN', 'Giao diện ứng dụng không phản hồi (unresponsive). Hiển thị tùy chọn tắt khẩn cấp.')
+    logApp('WARN', 'Window unresponsive detected. Showing force-quit dialog.')
     if (mainWindow && !mainWindow.isDestroyed()) {
       const choice = dialog.showMessageBoxSync(mainWindow, {
         type: 'warning',
@@ -137,7 +137,7 @@ function createWindow(): void {
         message: 'Giao diện ứng dụng đang bị treo hoặc đang xử lý tác vụ nặng.\n\nBạn có muốn buộc tắt ứng dụng ngay không?'
       })
       if (choice === 1) {
-        logApp('INFO', 'Người dùng chọn buộc tắt ứng dụng do bị treo.')
+        logApp('INFO', 'User chose to force quit unresponsive window.')
         mainWindow.destroy()
         app.exit(0)
       }
@@ -145,7 +145,7 @@ function createWindow(): void {
   })
 
   mainWindow.on('responsive', () => {
-    logApp('INFO', 'Cửa sổ giao diện đã phản hồi trở lại bình thường.')
+    logApp('INFO', 'Window has become responsive again.')
   })
 
   // ===== Phím Tắt Khẩn Cấp Ở Tầng Hệ Điều Hành (Emergency OS Kill Switches) =====
@@ -155,7 +155,7 @@ function createWindow(): void {
     // 1. Alt + F4 hoặc Ctrl + Q: Đóng khẩn cấp không cần qua UI
     if ((input.alt && input.key === 'F4') || (input.control && input.key.toLowerCase() === 'q')) {
       event.preventDefault()
-      logApp('INFO', `Nhận phím tắt khẩn cấp (${input.key}) -> Buộc đóng ứng dụng lập tức.`)
+      logApp('INFO', `Emergency key shortcut triggered (${input.key}) -> Forcing application exit.`)
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.destroy()
       }
@@ -164,7 +164,7 @@ function createWindow(): void {
 
     // 2. F5 hoặc Ctrl + Shift + R: Tải lại giao diện khẩn cấp nếu gặp sự cố hiển thị
     if (input.key === 'F5' || (input.control && input.shift && input.key.toLowerCase() === 'r')) {
-      logApp('INFO', 'Thực hiện tải lại giao diện khẩn cấp (Emergency Reload).')
+      logApp('INFO', 'Emergency reload triggered.')
       mainWindow?.reload()
     }
   })
@@ -191,7 +191,7 @@ function createWindow(): void {
 
   // Xử lý khi tải trang thất bại (Did-Fail-Load Watcher)
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-    logApp('ERROR', 'Giao diện không thể tải:', { errorCode, errorDescription, validatedURL })
+    logApp('ERROR', 'Renderer failed to load:', { errorCode, errorDescription, validatedURL })
     if (errorCode !== -3) { // Bỏ qua ERR_ABORTED
       const choice = dialog.showMessageBoxSync({
         type: 'error',
@@ -215,18 +215,18 @@ function createWindow(): void {
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    logApp('INFO', `Đang kết nối Dev Server: ${process.env['ELECTRON_RENDERER_URL']}`)
+    logApp('INFO', `Connecting to Dev Server: ${process.env['ELECTRON_RENDERER_URL']}`)
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     const indexPath = join(__dirname, '../renderer/index.html')
-    logApp('INFO', `Đang tải giao diện Production: ${indexPath}`)
+    logApp('INFO', `Loading production bundle: ${indexPath}`)
     mainWindow.loadFile(indexPath)
   }
 }
 
 // ===== Vòng đời ứng dụng (App Lifecycle) =====
 app.whenReady().then(async () => {
-  logApp('INFO', 'Electron App Ready. Khởi động tiến trình chính...')
+  logApp('INFO', 'Electron App Ready. Initializing main process...')
   electronApp.setAppUserModelId('com.vietkey.docgen')
 
   app.on('browser-window-created', (_, window) => {
@@ -246,7 +246,7 @@ app.whenReady().then(async () => {
     // 4. Tạo cửa sổ chính
     createWindow()
   } catch (initErr: any) {
-    logApp('ERROR', 'Lỗi nghiêm trọng trong chuỗi khởi tạo app.whenReady:', initErr)
+    logApp('ERROR', 'Critical initialization error in app.whenReady:', initErr)
     dialog.showErrorBox(
       'VietKey DocGen — Lỗi khởi tạo',
       `Không thể hoàn tất các bước khởi tạo ứng dụng:\n\n${initErr?.message || initErr}`
@@ -259,14 +259,14 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  logApp('INFO', 'Tất cả cửa sổ đã đóng. Thoát ứng dụng.')
+  logApp('INFO', 'All windows closed. Exiting application.')
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
 app.on('before-quit', () => {
-  logApp('INFO', 'Ứng dụng đang chuẩn bị thoát. Dọn dẹp tiến trình.')
+  logApp('INFO', 'Application preparing to quit. Cleaning up child processes.')
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.destroy()
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   X,
   Upload,
@@ -38,6 +38,17 @@ export function TemplateUploadModal({ isOpen, onClose, onTemplateCreated }: Temp
   const [templateDescription, setTemplateDescription] = useState('')
   const [fields, setFields] = useState<TemplateField[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
 
   if (!isOpen) return null
 

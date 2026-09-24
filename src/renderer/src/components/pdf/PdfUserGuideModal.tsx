@@ -49,6 +49,14 @@ const GUIDE_TABS: { id: GuideTab; label: string; icon: any }[] = [
 export function PdfUserGuideModal({ onClose }: PdfUserGuideModalProps) {
   const [activeTab, setActiveTab] = useState<GuideTab>('viewer')
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   return (
     <div className="pdf-modal-overlay" onClick={onClose} style={{ zIndex: 1200 }}>
       <motion.div

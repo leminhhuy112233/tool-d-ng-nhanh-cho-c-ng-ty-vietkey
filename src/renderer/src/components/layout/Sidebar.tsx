@@ -125,10 +125,10 @@ export function Sidebar() {
         {!collapsed ? (
           <div className="sidebar-version">
             <Zap size={14} />
-            <span>v1.0.0 — Giai đoạn 4</span>
+            <span>VietKey DocGen v{window.api?.getAppVersion?.() || '2.0.0'}</span>
           </div>
         ) : (
-          <div className="sidebar-version-collapsed">v1.0</div>
+          <div className="sidebar-version-collapsed">v{(window.api?.getAppVersion?.() || '2.0.0').slice(0, 3)}</div>
         )}
       </div>
     </aside>

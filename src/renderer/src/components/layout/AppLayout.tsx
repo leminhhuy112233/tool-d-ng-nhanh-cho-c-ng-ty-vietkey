@@ -7,7 +7,7 @@ import { CommandPalette } from '../common/CommandPalette'
 export function AppLayout() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
 
-  // Global Shortcut: Ctrl+K / Cmd+K
+  // Global Shortcut: Ctrl+K / Cmd+K and custom event
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
@@ -15,8 +15,14 @@ export function AppLayout() {
         setIsCommandPaletteOpen((prev) => !prev)
       }
     }
+    const handleOpenPalette = () => setIsCommandPaletteOpen(true)
+
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('open-command-palette', handleOpenPalette)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('open-command-palette', handleOpenPalette)
+    }
   }, [])
 
   return (

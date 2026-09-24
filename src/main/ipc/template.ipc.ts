@@ -11,6 +11,9 @@ import {
   getCustomTemplates,
   getCustomTemplateById,
   saveCustomTemplate,
+  updateCustomTemplate,
+  rollbackCustomTemplateVersion,
+  getTemplateVersions,
   deleteCustomTemplate
 } from '../services/database'
 import { analyzeDocxTemplate } from '../services/template-analyzer'
@@ -60,7 +63,7 @@ export function registerTemplateHandlers(): void {
     return getCustomTemplateById(id)
   })
 
-  // Lưu hoặc cập nhật mẫu Word tùy biến
+  // Lưu mẫu Word tùy biến mới (Version 1)
   ipcMain.handle(
     IPC_CHANNELS.TEMPLATE_CUSTOM_SAVE,
     async (_event, templateData: any, processedDocxBase64?: string) => {
@@ -73,6 +76,47 @@ export function registerTemplateHandlers(): void {
       }
     }
   )
+
+  // Cập nhật mẫu Word bằng phiên bản mới (Version n+1)
+  ipcMain.handle(
+    IPC_CHANNELS.TEMPLATE_CUSTOM_UPDATE,
+    async (_event, id: string, updateData: any, processedDocxBase64?: string, changeNote?: string) => {
+      try {
+        const updated = updateCustomTemplate(id, updateData, processedDocxBase64, changeNote)
+        if (!updated) {
+          return { success: false, error: 'Không tìm thấy mẫu tài liệu cần cập nhật.' }
+        }
+        return { success: true, template: updated }
+      } catch (err: any) {
+        console.error('Lỗi cập nhật custom template:', err)
+        return { success: false, error: err.message || 'Lỗi không xác định khi cập nhật mẫu.' }
+      }
+    }
+  )
+
+  // Lấy danh sách lịch sử các phiên bản của một mẫu
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_CUSTOM_VERSIONS, async (_event, id: string) => {
+    try {
+      return getTemplateVersions(id)
+    } catch (err: any) {
+      console.error('Lỗi lấy lịch sử phiên bản:', err)
+      return []
+    }
+  })
+
+  // Khôi phục (Rollback) về một phiên bản cũ
+  ipcMain.handle(IPC_CHANNELS.TEMPLATE_CUSTOM_ROLLBACK, async (_event, id: string, targetVersion: number) => {
+    try {
+      const rolledBack = rollbackCustomTemplateVersion(id, targetVersion)
+      if (!rolledBack) {
+        return { success: false, error: 'Không tìm thấy phiên bản cần khôi phục.' }
+      }
+      return { success: true, template: rolledBack }
+    } catch (err: any) {
+      console.error('Lỗi khôi phục phiên bản:', err)
+      return { success: false, error: err.message || 'Lỗi không xác định khi khôi phục phiên bản.' }
+    }
+  })
 
   // Xóa mẫu Word tùy biến theo ID
   ipcMain.handle(IPC_CHANNELS.TEMPLATE_CUSTOM_DELETE, async (_event, id: string) => {

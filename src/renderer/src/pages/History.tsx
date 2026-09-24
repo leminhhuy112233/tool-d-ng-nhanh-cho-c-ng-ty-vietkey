@@ -660,12 +660,7 @@ export function History() {
                   return (
                     <tr
                       key={record.id}
-                      style={{
-                        borderBottom: '1px solid var(--border)',
-                        transition: 'background 0.15s ease'
-                      }}
-                      onMouseOver={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-                      onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                      className="data-table-row"
                     >
                       {/* Thời gian */}
                       <td style={{ padding: '12px 16px', color: 'var(--muted-foreground)', fontSize: '12px' }}>

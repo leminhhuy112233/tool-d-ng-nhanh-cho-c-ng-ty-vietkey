@@ -4,6 +4,7 @@ import { PageHeader } from '../components/layout/PageHeader'
 import { FloatingExportBar } from '../components/common/FloatingExportBar'
 import { ExportConfigSection } from '../components/common/ExportConfigSection'
 import { LoadingOverlay } from '../components/common/LoadingOverlay'
+import { DocxNativePreviewPane } from '../components/preview/DocxNativePreviewPane'
 import {
   FileText,
   Save,
@@ -18,7 +19,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Layers,
-  ArrowLeft
+  ArrowLeft,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import type { CustomTemplateDef, TemplateField, ExportFileType, PartnerProfile } from '../../../shared/types'
 import { numberToVietnameseWords } from '../../../shared/number-to-words'
@@ -35,6 +38,7 @@ export function DynamicForm() {
   const [exportType, setExportType] = useState<ExportFileType>('word')
   const [isLoading, setIsLoading] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
+  const [showPreview, setShowPreview] = useState<boolean>(true)
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [toastMessage, setToastMessage] = useState<{
     type: 'success' | 'error'
@@ -258,9 +262,15 @@ export function DynamicForm() {
 
   if (!template) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <h3>Không tìm thấy mẫu tài liệu</h3>
-        <button onClick={() => navigate('/templates')} className="btn-primary" style={{ marginTop: '12px' }}>
+      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '8px' }}>
+          Không tìm thấy mẫu tài liệu
+        </h3>
+        <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>
+          Mẫu tài liệu này có thể đã bị xóa hoặc chưa được phân tích cấu trúc.
+        </p>
+        <button onClick={() => navigate('/templates')} className="btn-primary">
+          <ArrowLeft size={16} />
           Quay lại Quản lý mẫu
         </button>
       </div>
@@ -398,6 +408,16 @@ export function DynamicForm() {
             </button>
 
             <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowPreview(!showPreview)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}
+            >
+              {showPreview ? <EyeOff size={15} /> : <Eye size={15} />}
+              <span>{showPreview ? 'Ẩn xem trước' : 'Xem trước'}</span>
+            </button>
+
+            <button
               onClick={handleExport}
               disabled={isExporting}
               style={{
@@ -421,9 +441,11 @@ export function DynamicForm() {
           </div>
       </PageHeader>
 
-      {/* Main Form Fields Container */}
-      <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {Array.from(sectionsMap.entries()).map(([sectionName, secFields]) => (
+      {/* Main Container: Split-Screen Side-by-Side Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: showPreview ? '1fr 1.05fr' : '1fr', gap: '20px', alignItems: 'start' }}>
+        {/* CỘT TRÁI: FORM NHẬP LIỆU */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+          {Array.from(sectionsMap.entries()).map(([sectionName, secFields]) => (
           <div key={sectionName} className="glass-card" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
               <Layers size={18} style={{ color: 'var(--primary)' }} />
@@ -683,6 +705,21 @@ export function DynamicForm() {
           </div>
         </div>
       </div>
+
+      {/* CỘT PHẢI: BẢN XEM TRƯỚC DOCX NGUYÊN BẢN (CHÍNH XÁC 1:1 WORD) */}
+      {showPreview && (
+        <div style={{ position: 'sticky', top: '16px', height: 'calc(100vh - 100px)', minWidth: 0 }}>
+          <DocxNativePreviewPane
+            title={`Xem trước: ${template.name}`}
+            docType="custom"
+            data={formData}
+            customTemplateId={template.id}
+            onClosePreview={() => setShowPreview(false)}
+            onExportWord={handleExport}
+          />
+        </div>
+      )}
     </div>
+  </div>
   )
 }

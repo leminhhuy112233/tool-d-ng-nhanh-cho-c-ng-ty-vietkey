@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../components/layout/PageHeader'
 import { TemplateUploadModal } from '../components/templates/TemplateUploadModal'
+import { TemplateUpdateModal } from '../components/templates/TemplateUpdateModal'
+import { TemplateVersionHistoryModal } from '../components/templates/TemplateVersionHistoryModal'
 import {
   FileText,
   FolderOpen,
@@ -22,7 +24,9 @@ import {
   Plus,
   Trash2,
   Play,
-  Upload
+  Upload,
+  History,
+  GitBranch
 } from 'lucide-react'
 import type { CustomTemplateDef } from '../../../shared/types'
 
@@ -168,6 +172,8 @@ export function TemplateManager() {
   // Custom Templates State
   const [customTemplates, setCustomTemplates] = useState<CustomTemplateDef[]>([])
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [updatingTemplate, setUpdatingTemplate] = useState<CustomTemplateDef | null>(null)
+  const [historyTemplate, setHistoryTemplate] = useState<CustomTemplateDef | null>(null)
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToastMessage({ type, text })
@@ -283,7 +289,7 @@ export function TemplateManager() {
             }}
           >
             <Plus size={16} />
-            + Tải Lên Mẫu Word Mới
+            Tải Lên Mẫu Word Mới
           </button>
 
           <button
@@ -465,19 +471,35 @@ export function TemplateManager() {
                     <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--foreground)' }}>
                       {tpl.name}
                     </h4>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        borderRadius: '20px',
-                        fontWeight: 600,
-                        background: tpl.isFromRedHighlight ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
-                        color: tpl.isFromRedHighlight ? '#ef4444' : 'var(--primary)',
-                        border: `1px solid ${tpl.isFromRedHighlight ? 'rgba(239, 68, 68, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`
-                      }}
-                    >
-                      {tpl.isFromRedHighlight ? 'Bôi Đỏ AI' : 'Mẫu Tùy Biến'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontWeight: 700,
+                          background: '#e0e7ff',
+                          color: '#3730a3',
+                          border: '1px solid #c7d2fe'
+                        }}
+                        title={`Phiên bản hiện tại: v${tpl.currentVersion || 1}.0`}
+                      >
+                        v{tpl.currentVersion || 1}.0
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontWeight: 600,
+                          background: tpl.isFromRedHighlight ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                          color: tpl.isFromRedHighlight ? '#ef4444' : 'var(--primary)',
+                          border: `1px solid ${tpl.isFromRedHighlight ? 'rgba(239, 68, 68, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`
+                        }}
+                      >
+                        {tpl.isFromRedHighlight ? 'Bôi Đỏ AI' : 'Mẫu Tùy Biến'}
+                      </span>
+                    </div>
                   </div>
 
                   <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 12px', lineHeight: '1.5' }}>
@@ -491,7 +513,7 @@ export function TemplateManager() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', gap: '6px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
                   <button
                     onClick={() => navigate(`/custom-form/${tpl.id}`)}
                     style={{
@@ -512,6 +534,38 @@ export function TemplateManager() {
                   >
                     <Play size={14} />
                     Điền & Xuất
+                  </button>
+
+                  <button
+                    onClick={() => setUpdatingTemplate(tpl)}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'var(--muted)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      color: 'var(--foreground)',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Cập nhật mẫu / Nâng cấp phiên bản mới"
+                  >
+                    <GitBranch size={14} />
+                  </button>
+
+                  <button
+                    onClick={() => setHistoryTemplate(tpl)}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'var(--muted)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      color: 'var(--foreground)',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Lịch sử phiên bản & Rollback"
+                  >
+                    <History size={14} />
                   </button>
 
                   <button
@@ -920,6 +974,28 @@ export function TemplateManager() {
           loadCustomTemplates()
           showToast('success', `Đã tạo mẫu thành công: "${newTpl.name}"!`)
           navigate(`/custom-form/${newTpl.id}`)
+        }}
+      />
+
+      {/* Update Custom Template Modal */}
+      <TemplateUpdateModal
+        isOpen={Boolean(updatingTemplate)}
+        template={updatingTemplate}
+        onClose={() => setUpdatingTemplate(null)}
+        onTemplateUpdated={(updated) => {
+          loadCustomTemplates()
+          showToast('success', `Đã nâng cấp mẫu "${updated.name}" lên phiên bản v${updated.currentVersion || 2}.0 thành công!`)
+        }}
+      />
+
+      {/* Version History & Rollback Modal */}
+      <TemplateVersionHistoryModal
+        isOpen={Boolean(historyTemplate)}
+        template={historyTemplate}
+        onClose={() => setHistoryTemplate(null)}
+        onRollbackSuccess={(rolledBack) => {
+          loadCustomTemplates()
+          showToast('success', `Đã khôi phục mẫu "${rolledBack.name}" về phiên bản v${rolledBack.currentVersion || 1}.0 thành công!`)
         }}
       />
     </div>

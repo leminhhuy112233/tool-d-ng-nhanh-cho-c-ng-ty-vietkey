@@ -36,7 +36,7 @@ export function Titlebar() {
 
       {/* Center Quick Command Palette Trigger */}
       <button
-        onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+        onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
         style={{
           display: 'flex',
           alignItems: 'center',

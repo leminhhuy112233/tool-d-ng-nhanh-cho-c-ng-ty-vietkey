@@ -57,7 +57,7 @@ export async function executeDatabaseMigration(
     }
   }
 
-  console.log(`[Migration] Phát hiện Database schema cũ (v${existingVersion}). Chuẩn bị nâng cấp lên v${CURRENT_SCHEMA_VERSION}...`)
+  console.log(`[Migration] Detected legacy Database schema (v${existingVersion}). Upgrading to v${CURRENT_SCHEMA_VERSION}...`)
 
   // 1. Tạo bản sao lưu dự phòng BẮT BUỘC trước khi migration (Pre-migration Backup)
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -67,9 +67,9 @@ export async function executeDatabaseMigration(
   try {
     if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true })
     writeFileSync(preMigrationBackupPath, JSON.stringify(inputData, null, 2), 'utf-8')
-    console.log(`[Migration] ✓ Đã tạo bản sao lưu an toàn trước migration: ${preMigrationBackupPath}`)
+    console.log(`[Migration] Safe pre-migration backup created: ${preMigrationBackupPath}`)
   } catch (err: any) {
-    console.error('[Migration] Không thể tạo pre-migration backup:', err)
+    console.error('[Migration] Failed to create pre-migration backup:', err)
     return {
       data: inputData,
       result: {
@@ -100,7 +100,7 @@ export async function executeDatabaseMigration(
         break
       }
 
-      console.log(`[Migration] Đang áp dụng: ${step.description} (v${step.fromVersion} -> v${step.toVersion})`)
+      console.log(`[Migration] Applying step: ${step.description} (v${step.fromVersion} -> v${step.toVersion})`)
       currentData = await step.migrate(currentData)
       currentData._schemaVersion = step.toVersion
       stepVersion = step.toVersion
@@ -111,7 +111,7 @@ export async function executeDatabaseMigration(
     // 3. Ghi lại lịch sử migration vào Metadata/
     saveSchemaMetadata(metadataDir, CURRENT_SCHEMA_VERSION, true, preMigrationBackupPath)
 
-    console.log(`[Migration] ✓ Nâng cấp Database thành công lên schema v${CURRENT_SCHEMA_VERSION}!`)
+    console.log(`[Migration] Database successfully upgraded to schema v${CURRENT_SCHEMA_VERSION}!`)
     return {
       data: currentData,
       result: {
@@ -123,7 +123,7 @@ export async function executeDatabaseMigration(
       }
     }
   } catch (migErr: any) {
-    console.error('[Migration] ❌ Lỗi trong quá trình migration, đang phục hồi lại bản sao lưu gốc:', migErr)
+    console.error('[Migration] Error during migration, rolling back to pre-migration backup:', migErr)
 
     // Ghi lỗi vào thư mục Recovery/
     try {

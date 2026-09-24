@@ -90,6 +90,18 @@ export interface QuotationData {
   items: QuotationItem[]
 }
 
+// Advance Request Item Schema
+export interface AdvanceRequestItem {
+  id: string
+  stt: number
+  ten_vat_tu: string
+  don_vi: string
+  so_luong: string
+  don_gia: string
+  thanh_tien: string
+  ghi_chu?: string
+}
+
 // Advance Request Data Schema (Đề nghị tạm ứng)
 export interface AdvanceRequestData {
   ngay: string
@@ -98,11 +110,17 @@ export interface AdvanceRequestData {
   ten_cong_ty_khach: string
   noi_dung_cung_cap: string
   dot_tam_ung: string
-  gia_tri_don_hang: string
-  gia_tri_tam_ung: string
+  ngay_don_hang?: string
+  thang_don_hang?: string
+  nam_don_hang?: string
+  items?: AdvanceRequestItem[]
+  dieu_kien_thanh_toan?: string
+  tong_tien?: string
+  gia_tri_don_hang?: string
+  gia_tri_tam_ung?: string
   so_tien_bang_chu: string
   file_name: string
-  export_dir: string
+  export_dir?: string
   export_type: ExportFileType
 }
 
@@ -150,6 +168,17 @@ export interface TemplateField {
   subFields?: TableSubField[]
 }
 
+export interface TemplateVersion {
+  version: number
+  versionName?: string
+  changeNote?: string
+  docxFilePath: string
+  fileName: string
+  fields: TemplateField[]
+  createdAt: string
+  fileSize?: string
+}
+
 export interface CustomTemplateDef {
   id: string
   name: string
@@ -161,6 +190,8 @@ export interface CustomTemplateDef {
   fields: TemplateField[]
   isFromRedHighlight?: boolean
   category?: string
+  currentVersion?: number
+  versions?: TemplateVersion[]
 }
 
 export interface AnalyzedTemplateResult {
@@ -302,12 +333,28 @@ export interface ElectronAPI {
   ) => Promise<{ success: boolean; template?: CustomTemplateDef; error?: string }>
   deleteCustomTemplate: (id: string) => Promise<{ success: boolean; error?: string }>
   getCustomTemplateById: (id: string) => Promise<CustomTemplateDef | null>
+  updateCustomTemplate: (
+    id: string,
+    templateData: Partial<CustomTemplateDef>,
+    processedDocxBase64?: string,
+    changeNote?: string
+  ) => Promise<{ success: boolean; template?: CustomTemplateDef; error?: string }>
+  getTemplateVersions: (id: string) => Promise<TemplateVersion[]>
+  rollbackCustomTemplateVersion: (
+    id: string,
+    targetVersion: number
+  ) => Promise<{ success: boolean; template?: CustomTemplateDef; error?: string }>
   exportCustomDocument: (
     templateId: string,
     data: Record<string, any>,
     targetPath: string,
     exportType?: ExportFileType
   ) => Promise<ExportResult>
+  renderPreviewDocx: (
+    type: 'quotation' | 'contract' | 'advance' | 'custom',
+    data: any,
+    customTemplateId?: string
+  ) => Promise<{ success: boolean; docxBase64?: string; error?: string }>
 
   // App info
   getAppVersion: () => string

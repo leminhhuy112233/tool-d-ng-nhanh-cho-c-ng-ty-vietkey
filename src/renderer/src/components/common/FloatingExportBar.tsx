@@ -1,4 +1,4 @@
-import { Download } from 'lucide-react'
+import { Download, RefreshCw, Eye, EyeOff } from 'lucide-react'
 import type { ExportFileType } from '../../../../shared/types'
 
 interface FloatingExportBarProps {
@@ -9,6 +9,8 @@ interface FloatingExportBarProps {
   isExporting: boolean
   onExport: () => void
   buttonLabel?: string
+  onTogglePreview?: () => void
+  isPreviewOpen?: boolean
 }
 
 export function FloatingExportBar({
@@ -18,7 +20,9 @@ export function FloatingExportBar({
   fileName,
   isExporting,
   onExport,
-  buttonLabel
+  buttonLabel,
+  onTogglePreview,
+  isPreviewOpen
 }: FloatingExportBarProps) {
   const getFormatLabel = () => {
     if (exportType === 'word') return '📄 Word'
@@ -105,29 +109,62 @@ export function FloatingExportBar({
         </div>
       </div>
 
-      <button
-        onClick={onExport}
-        disabled={isExporting}
-        style={{
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '12px 24px',
-          background: 'var(--primary)',
-          color: 'var(--primary-foreground)',
-          border: 'none',
-          borderRadius: '10px',
-          fontSize: '13.5px',
-          fontWeight: 700,
-          cursor: 'pointer',
-          boxShadow: '0 4px 16px rgba(178, 213, 229, 0.4)',
-          fontFamily: "'Inter', sans-serif"
-        }}
-      >
-        <Download size={18} color="var(--primary-foreground)" />
-        {buttonLabel || defaultButtonText}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+        {onTogglePreview && (
+          <button
+            type="button"
+            onClick={onTogglePreview}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '12px 18px',
+              background: isPreviewOpen ? 'var(--primary)' : 'var(--card)',
+              color: isPreviewOpen ? 'var(--primary-foreground)' : 'var(--foreground)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
+            }}
+            title={isPreviewOpen ? 'Đóng xem trước' : 'Bật xem trước và sửa trực tiếp'}
+          >
+            {isPreviewOpen ? <EyeOff size={16} /> : <Eye size={16} />}
+            <span>{isPreviewOpen ? 'Đóng xem trước' : 'Xem trước'}</span>
+          </button>
+        )}
+
+        <button
+          onClick={onExport}
+          disabled={isExporting}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 24px',
+            background: 'var(--primary)',
+            color: 'var(--primary-foreground)',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '13.5px',
+            fontWeight: 700,
+            cursor: isExporting ? 'not-allowed' : 'pointer',
+            opacity: isExporting ? 0.7 : 1,
+            boxShadow: '0 4px 16px rgba(178, 213, 229, 0.4)',
+            fontFamily: "'Inter', sans-serif",
+            transition: 'all 0.15s ease'
+          }}
+        >
+          {isExporting ? (
+            <RefreshCw size={18} className="animate-spin" color="var(--primary-foreground)" />
+          ) : (
+            <Download size={18} color="var(--primary-foreground)" />
+          )}
+          {buttonLabel || defaultButtonText}
+        </button>
+      </div>
     </div>
   )
 }

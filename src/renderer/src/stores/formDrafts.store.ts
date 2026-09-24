@@ -58,11 +58,38 @@ export const createInitialAdvanceRequestData = (): AdvanceRequestData => {
     thang: month,
     nam: year,
     ten_cong_ty_khach: '',
-    noi_dung_cung_cap: 'VLXD các loại',
+    noi_dung_cung_cap: 'đá các loại',
     dot_tam_ung: '1',
-    gia_tri_don_hang: '',
-    gia_tri_tam_ung: '',
-    so_tien_bang_chu: '',
+    ngay_don_hang: day,
+    thang_don_hang: month,
+    nam_don_hang: year,
+    items: [
+      {
+        id: '1',
+        stt: 1,
+        ten_vat_tu: 'Cấp phối đá dăm Dmax 37,5',
+        don_vi: 'M3',
+        so_luong: '2.000',
+        don_gia: '363.000',
+        thanh_tien: '726.000.000 ₫',
+        ghi_chu: 'Mỏ Hòn Ngang'
+      },
+      {
+        id: '2',
+        stt: 2,
+        ten_vat_tu: 'Đá BTN 1,9*2,5',
+        don_vi: 'M3',
+        so_luong: '500',
+        don_gia: '625.000',
+        thanh_tien: '312.500.000 ₫',
+        ghi_chu: ''
+      }
+    ],
+    dieu_kien_thanh_toan: 'Thanh toán trước 100% đơn hàng',
+    tong_tien: '1.038.500.000 ₫',
+    gia_tri_don_hang: '1.038.500.000 ₫',
+    gia_tri_tam_ung: '1.038.500.000 ₫',
+    so_tien_bang_chu: 'Một tỷ không trăm ba mươi tám triệu năm trăm nghìn đồng./.',
     file_name: 'DeNghiTamUng.docx',
     export_dir: '',
     export_type: 'word'

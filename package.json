@@ -1,6 +1,6 @@
 {
   "name": "vietkey-docgen",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "VietKey AI Document Generator - Tạo tài liệu Word tự động từ Template",
   "main": "./out/main/index.js",
   "author": "VietKey",
@@ -25,6 +25,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "docx-preview": "^0.4.1",
     "docxtemplater": "^3.56.2",
     "fabric": "^7.4.0",
     "framer-motion": "^12.43.0",

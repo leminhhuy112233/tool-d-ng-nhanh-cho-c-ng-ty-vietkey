@@ -14,6 +14,7 @@ import { DynamicForm } from './pages/DynamicForm'
 import { PdfTools } from './pages/PdfTools'
 import { useThemeStore } from './stores/theme.store'
 import { playClickSound } from './lib/sound'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -134,9 +135,11 @@ function App() {
   }
 
   return (
-    <HashRouter>
-      <AnimatedRoutes />
-    </HashRouter>
+    <ErrorBoundary>
+      <HashRouter>
+        <AnimatedRoutes />
+      </HashRouter>
+    </ErrorBoundary>
   )
 }
 

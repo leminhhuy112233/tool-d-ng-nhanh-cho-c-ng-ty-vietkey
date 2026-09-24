@@ -46,7 +46,7 @@ export function resolveTemplatePath(fileName: string): string | null {
   // 2. Mẫu hệ thống mặc định đi kèm bản cài
   const candidatePaths = [
     process.resourcesPath ? join(process.resourcesPath, 'templates', fileName) : '',
-    join(app.getAppPath(), 'templates', fileName),
+    app?.getAppPath ? join(app.getAppPath(), 'templates', fileName) : '',
     join(process.cwd(), 'templates', fileName),
     join(__dirname, '..', '..', 'templates', fileName),
     join(__dirname, '..', 'templates', fileName)
@@ -56,11 +56,42 @@ export function resolveTemplatePath(fileName: string): string | null {
   return found || null
 }
 
-// ===== 1. Xuất Hợp đồng nguyên tắc =====
-export function generateContractDocx(
-  data: ContractData,
-  targetPath: string
-): { success: boolean; error?: string } {
+// ===== In-Memory Binary Template Cache (Tối ưu hiệu năng nạp mẫu) =====
+interface TemplateCacheEntry {
+  mtimeMs: number
+  buffer: Buffer
+}
+
+const templateBinaryCache = new Map<string, TemplateCacheEntry>()
+
+export function getCachedTemplateBuffer(filePath: string): Buffer {
+  try {
+    const stats = statSync(filePath)
+    const cached = templateBinaryCache.get(filePath)
+    if (cached && cached.mtimeMs === stats.mtimeMs) {
+      return cached.buffer
+    }
+    const buf = readFileSync(filePath)
+    templateBinaryCache.set(filePath, { mtimeMs: stats.mtimeMs, buffer: buf })
+    return buf
+  } catch {
+    const buf = readFileSync(filePath)
+    return buf
+  }
+}
+
+export function invalidateTemplateCache(filePath?: string): void {
+  if (filePath) {
+    templateBinaryCache.delete(filePath)
+  } else {
+    templateBinaryCache.clear()
+  }
+}
+
+// ===== 1. Render Buffer Hợp đồng nguyên tắc =====
+export function renderContractDocxBuffer(
+  data: ContractData
+): { success: boolean; buffer?: Buffer; error?: string } {
   try {
     const templatePath = resolveTemplatePath('HopDongNguyenTac.docx')
     if (!templatePath) {
@@ -76,7 +107,7 @@ export function generateContractDocx(
       data.benb_xung_danh || 'Bà'
     )
 
-    const content = readFileSync(templatePath, 'binary')
+    const content = getCachedTemplateBuffer(templatePath)
     const zip = new PizZip(content)
 
     const doc = new Docxtemplater(zip, {
@@ -109,37 +140,43 @@ export function generateContractDocx(
     })
 
     const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
-    writeFileSync(targetPath, buf)
-
-    return { success: true }
+    return { success: true, buffer: buf }
   } catch (err: any) {
-    console.error('Lỗi xuất Word Hợp đồng:', err)
-    return {
-      success: false,
-      error: err.message || 'Lỗi không xác định khi xuất file Word.'
-    }
+    console.error('Error rendering Contract buffer:', err)
+    return { success: false, error: err.message || 'Lỗi không xác định khi tạo buffer Hợp đồng.' }
   }
 }
 
-// ===== 2. Xuất Báo giá =====
-export function generateQuotationDocx(
-  data: QuotationData,
+export function generateContractDocx(
+  data: ContractData,
   targetPath: string
 ): { success: boolean; error?: string } {
+  const res = renderContractDocxBuffer(data)
+  if (!res.success || !res.buffer) {
+    return { success: false, error: res.error }
+  }
+  try {
+    writeFileSync(targetPath, res.buffer)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+// ===== 2. Render Buffer Báo giá =====
+export function renderQuotationDocxBuffer(
+  data: QuotationData
+): { success: boolean; buffer?: Buffer; error?: string } {
   try {
     const isWithNotes = Boolean(data.co_ghi_chu)
     const templateFileName = isWithNotes ? 'BaoGia_CoGhiChu.docx' : 'BaoGia.docx'
-    console.log(`[generateQuotationDocx] Bắt đầu xuất báo giá: co_ghi_chu = ${isWithNotes} -> Template: ${templateFileName}`)
 
     const templatePath = resolveTemplatePath(templateFileName)
     if (!templatePath) {
-      console.error(`[generateQuotationDocx] Không tìm thấy file template ${templateFileName}`)
       return { success: false, error: `Không tìm thấy template ${templateFileName} trong hệ thống.` }
     }
 
-    console.log(`[generateQuotationDocx] Đã tìm thấy template tại: ${templatePath}`)
-
-    const content = readFileSync(templatePath, 'binary')
+    const content = getCachedTemplateBuffer(templatePath)
     const zip = new PizZip(content)
 
     const doc = new Docxtemplater(zip, {
@@ -147,7 +184,6 @@ export function generateQuotationDocx(
       linebreaks: true
     })
 
-    // Prepare table items with auto formatted STT (01, 02, 03...)
     const formattedItems = (data.items || []).map((item, idx) => ({
       stt: item.stt || String(idx + 1).padStart(2, '0'),
       ten_hang: item.ten_hang || '',
@@ -165,30 +201,40 @@ export function generateQuotationDocx(
     })
 
     const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
-    writeFileSync(targetPath, buf)
-
-    return { success: true }
+    return { success: true, buffer: buf }
   } catch (err: any) {
-    console.error('Lỗi xuất Word Báo giá:', err)
-    return {
-      success: false,
-      error: err.message || 'Lỗi không xác định khi xuất file Báo giá Word.'
-    }
+    console.error('Error rendering Quotation buffer:', err)
+    return { success: false, error: err.message || 'Lỗi không xác định khi tạo buffer Báo giá.' }
   }
 }
 
-// ===== 3. Xuất Đề nghị Tạm ứng =====
-export function generateAdvanceRequestDocx(
-  data: AdvanceRequestData,
+export function generateQuotationDocx(
+  data: QuotationData,
   targetPath: string
 ): { success: boolean; error?: string } {
+  const res = renderQuotationDocxBuffer(data)
+  if (!res.success || !res.buffer) {
+    return { success: false, error: res.error }
+  }
+  try {
+    writeFileSync(targetPath, res.buffer)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+// ===== 3. Render Buffer Đề nghị Tạm ứng =====
+export function renderAdvanceRequestDocxBuffer(
+  data: AdvanceRequestData
+): { success: boolean; buffer?: Buffer; error?: string } {
   try {
     const templatePath = resolveTemplatePath('DeNghiTamUng.docx')
     if (!templatePath) {
       return { success: false, error: 'Không tìm thấy template DeNghiTamUng.docx trong hệ thống.' }
     }
 
-    const content = readFileSync(templatePath, 'binary')
+    const content = getCachedTemplateBuffer(templatePath)
     const zip = new PizZip(content)
 
     const doc = new Docxtemplater(zip, {
@@ -196,46 +242,104 @@ export function generateAdvanceRequestDocx(
       linebreaks: true
     })
 
-    // Tên công ty khách hàng luôn IN HOA toàn bộ
     const clientCompanyUpper = (data.ten_cong_ty_khach || '').toUpperCase()
+
+    const rawTotal = data.tong_tien || data.gia_tri_tam_ung || '0'
+    const totalFormatted = rawTotal ? (rawTotal.includes('₫') ? rawTotal : `${rawTotal} ₫`) : '0 ₫'
+
+    const items = (data.items && data.items.length > 0)
+      ? data.items.map((it, idx) => {
+          const qtyNum = typeof it.so_luong === 'number' ? it.so_luong : Number(String(it.so_luong || '').replace(/[^0-9]/g, ''))
+          const priceNum = typeof it.don_gia === 'number' ? it.don_gia : Number(String(it.don_gia || '').replace(/[^0-9]/g, ''))
+          let subtotalStr = it.thanh_tien
+          if (!subtotalStr && qtyNum && priceNum) {
+            subtotalStr = (qtyNum * priceNum).toLocaleString('vi-VN')
+          }
+          const formattedSubtotal = subtotalStr
+            ? (String(subtotalStr).includes('₫') ? String(subtotalStr) : `${subtotalStr} ₫`)
+            : ''
+
+          return {
+            stt: it.stt || idx + 1,
+            ten_vat_tu: it.ten_vat_tu || '',
+            don_vi: it.don_vi || 'M3',
+            so_luong: typeof it.so_luong === 'number' ? it.so_luong.toLocaleString('vi-VN') : (it.so_luong || ''),
+            don_gia: typeof it.don_gia === 'number' ? it.don_gia.toLocaleString('vi-VN') : (it.don_gia || ''),
+            thanh_tien: formattedSubtotal,
+            ghi_chu: it.ghi_chu || ''
+          }
+        })
+      : [
+          {
+            stt: 1,
+            ten_vat_tu: data.noi_dung_cung_cap || 'VLXD các loại',
+            don_vi: 'Lô',
+            so_luong: '1',
+            don_gia: totalFormatted,
+            thanh_tien: totalFormatted,
+            ghi_chu: ''
+          }
+        ]
+
+    let wordsText = data.so_tien_bang_chu || 'Không đồng'
+    if (wordsText && !wordsText.endsWith('./.') && !wordsText.endsWith('.')) {
+      wordsText += './.'
+    }
 
     doc.render({
       ngay: data.ngay || '',
       thang: data.thang || '',
       nam: data.nam || '',
       ten_cong_ty_khach: clientCompanyUpper,
-      noi_dung_cung_cap: data.noi_dung_cung_cap || 'VLXD các loại',
+      noi_dung_cung_cap: data.noi_dung_cung_cap || 'đá các loại',
       dot_tam_ung: data.dot_tam_ung || '1',
-      gia_tri_don_hang: data.gia_tri_don_hang || '0',
-      gia_tri_tam_ung: data.gia_tri_tam_ung || '0',
-      so_tien_bang_chu: data.so_tien_bang_chu || 'Không'
+      ngay_don_hang: data.ngay_don_hang || data.ngay || '',
+      thang_don_hang: data.thang_don_hang || data.thang || '',
+      nam_don_hang: data.nam_don_hang || data.nam || '',
+      items,
+      dieu_kien_thanh_toan: data.dieu_kien_thanh_toan || 'Thanh toán trước 100% đơn hàng',
+      tong_tien: totalFormatted,
+      so_tien_bang_chu: wordsText,
+      // Backward-compatible fields
+      gia_tri_don_hang: data.gia_tri_don_hang || data.tong_tien || '0',
+      gia_tri_tam_ung: data.gia_tri_tam_ung || data.tong_tien || '0'
     })
 
     const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
-    writeFileSync(targetPath, buf)
-
-    return { success: true }
+    return { success: true, buffer: buf }
   } catch (err: any) {
-    console.error('Lỗi xuất Word Đề nghị Tạm ứng:', err)
-    return {
-      success: false,
-      error: err.message || 'Lỗi không xác định khi xuất file Đề nghị Tạm ứng Word.'
-    }
+    console.error('Error rendering Advance Request buffer:', err)
+    return { success: false, error: err.message || 'Lỗi không xác định khi tạo buffer Đề nghị Tạm ứng.' }
   }
 }
 
-// ===== 4. Xuất Mẫu Tùy Biến (Custom Dynamic Template) =====
-export function generateCustomDocx(
-  templateFilePath: string,
-  data: Record<string, any>,
+export function generateAdvanceRequestDocx(
+  data: AdvanceRequestData,
   targetPath: string
 ): { success: boolean; error?: string } {
+  const res = renderAdvanceRequestDocxBuffer(data)
+  if (!res.success || !res.buffer) {
+    return { success: false, error: res.error }
+  }
+  try {
+    writeFileSync(targetPath, res.buffer)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+// ===== 4. Render Buffer Mẫu Tùy Biến (Custom Dynamic Template) =====
+export function renderCustomDocxBuffer(
+  templateFilePath: string,
+  data: Record<string, any>
+): { success: boolean; buffer?: Buffer; error?: string } {
   try {
     if (!existsSync(templateFilePath)) {
       return { success: false, error: `Không tìm thấy file mẫu tại: ${templateFilePath}` }
     }
 
-    const content = readFileSync(templateFilePath, 'binary')
+    const content = getCachedTemplateBuffer(templateFilePath)
     const zip = new PizZip(content)
 
     const doc = new Docxtemplater(zip, {
@@ -243,7 +347,6 @@ export function generateCustomDocx(
       linebreaks: true
     })
 
-    // Tự động chuẩn hóa dữ liệu: nếu có mảng items thì format STT
     const renderData: Record<string, any> = { ...data }
     for (const key of Object.keys(renderData)) {
       if (Array.isArray(renderData[key])) {
@@ -262,15 +365,45 @@ export function generateCustomDocx(
     doc.render(renderData)
 
     const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
-    writeFileSync(targetPath, buf)
+    return { success: true, buffer: buf }
+  } catch (err: any) {
+    console.error('Error rendering Custom Template buffer:', err)
+    return { success: false, error: err.message || 'Lỗi không xác định khi tạo buffer Word tùy biến.' }
+  }
+}
 
+export function generateCustomDocx(
+  templateFilePath: string,
+  data: Record<string, any>,
+  targetPath: string
+): { success: boolean; error?: string } {
+  const res = renderCustomDocxBuffer(templateFilePath, data)
+  if (!res.success || !res.buffer) {
+    return { success: false, error: res.error }
+  }
+  try {
+    writeFileSync(targetPath, res.buffer)
     return { success: true }
   } catch (err: any) {
-    console.error('Lỗi xuất Word Mẫu Tùy Biến:', err)
-    return {
-      success: false,
-      error: err.message || 'Lỗi không xác định khi xuất file Word tùy biến.'
-    }
+    return { success: false, error: err.message }
   }
+}
+
+// ===== 5. Helper chung cho Preview In-Memory DOCX =====
+export function renderPreviewDocxBuffer(
+  type: 'quotation' | 'contract' | 'advance' | 'custom',
+  data: any,
+  customTemplateFilePath?: string
+): { success: boolean; buffer?: Buffer; error?: string } {
+  if (type === 'quotation') return renderQuotationDocxBuffer(data)
+  if (type === 'contract') return renderContractDocxBuffer(data)
+  if (type === 'advance') return renderAdvanceRequestDocxBuffer(data)
+  if (type === 'custom') {
+    if (!customTemplateFilePath) {
+      return { success: false, error: 'Thiếu đường dẫn template tùy biến.' }
+    }
+    return renderCustomDocxBuffer(customTemplateFilePath, data)
+  }
+  return { success: false, error: `Loại tài liệu không hợp lệ: ${type}` }
 }
 

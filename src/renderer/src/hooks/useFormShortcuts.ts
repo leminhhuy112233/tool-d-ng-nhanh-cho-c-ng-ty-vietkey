@@ -4,22 +4,28 @@
  * useDefaultExportDir: Tự động nạp thư mục xuất mặc định từ cài đặt hệ thống
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 export function useExportShortcut(onExport: () => void, isExporting = false): void {
+  const onExportRef = useRef(onExport)
+  onExportRef.current = onExport
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !isExporting) {
         e.preventDefault()
-        onExport()
+        onExportRef.current()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onExport, isExporting])
+  }, [isExporting])
 }
 
 export function useDefaultExportDir(onSetDir: (dir: string) => void): void {
+  const onSetDirRef = useRef(onSetDir)
+  onSetDirRef.current = onSetDir
+
   useEffect(() => {
     let cancelled = false
     const loadDefaultDir = async () => {
@@ -27,7 +33,7 @@ export function useDefaultExportDir(onSetDir: (dir: string) => void): void {
         try {
           const dir = await window.api.getSetting('defaultExportDir')
           if (!cancelled && dir) {
-            onSetDir(dir)
+            onSetDirRef.current(dir)
           }
         } catch (err) {
           console.error('Lỗi đọc defaultExportDir:', err)
@@ -38,5 +44,6 @@ export function useDefaultExportDir(onSetDir: (dir: string) => void): void {
     return () => {
       cancelled = true
     }
-  }, [onSetDir])
+  }, [])
 }
+

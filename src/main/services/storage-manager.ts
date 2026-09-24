@@ -124,9 +124,9 @@ class StorageManager {
       if (existsSync(legacyPath)) {
         try {
           copyFileSync(legacyPath, dbFile)
-          console.log('[StorageManager] ✓ Đã chuyển đổi dữ liệu từ AppData sang Local PC Hub:', dbFile)
+          console.log('[StorageManager] Data migrated from AppData to Local PC Hub:', dbFile)
         } catch (err) {
-          console.error('[StorageManager] Lỗi di chuyển dữ liệu cũ:', err)
+          console.error('[StorageManager] Failed to migrate legacy data:', err)
         }
       }
     }
@@ -480,7 +480,7 @@ class StorageManager {
         const preRestoreSnapshot = join(this.getBackupsDir(), `pre_restore_safety_${timestamp}.json`)
         try {
           copyFileSync(currentDbFile, preRestoreSnapshot)
-          console.log('[StorageManager] ✓ Đã chụp snapshot bảo vệ trước khi restore:', preRestoreSnapshot)
+          console.log('[StorageManager] Pre-restore safety snapshot created:', preRestoreSnapshot)
         } catch {
           // ignore
         }

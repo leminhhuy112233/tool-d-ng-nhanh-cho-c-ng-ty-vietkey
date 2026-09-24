@@ -1,3 +1,13 @@
+/**
+ * VietKey DocGen — Smart Template Analyzer
+ * Bộ phân tích và nhận diện mẫu Word thông minh:
+ * 1. Đóng cụm chữ bôi ĐỎ (Red Cluster Merging) giải quyết triệt để lỗi phân mảnh run Unikey của Word
+ * 2. Tự động nhận diện ngữ cảnh tiếng Việt (Khách hàng, Ngày tháng, Điều khoản, Bảng hàng hóa, Tổng tiền, Bằng chữ)
+ * 3. Tự động loại bỏ tiêu đề cột (STT, Đơn giá, Thành tiền...) khỏi danh sách trường điền
+ * 4. Tái sử dụng biến thông minh (Semantic Deduplication) cho các trường xuất hiện nhiều lần (Tên công ty, MST...)
+ * 5. Hỗ trợ OpenAI GPT (nếu có API Key) hoặc bộ Heuristic tiếng Việt 100% Offline
+ */
+
 import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 // @ts-ignore
@@ -5,6 +15,7 @@ import InspectModule from 'docxtemplater/js/inspect-module.js'
 import { readFileSync, existsSync } from 'fs'
 import { basename } from 'path'
 import type { AnalyzedTemplateResult, TemplateField, TemplateFieldType, TableSubField } from '../../shared/types'
+import { getSetting } from './database'
 
 // Helper: Chuyển đổi chuỗi không dấu / snake_case sang Tiếng Việt có dấu thân thiện
 export function inferFriendlyLabel(key: string): string {
@@ -16,9 +27,10 @@ export function inferFriendlyLabel(key: string): string {
     thang: 'Tháng',
     nam: 'Năm',
     ngay_ky: 'Ngày ký',
-    ngay_lap: 'Ngày lập',
+    ngay_lap: 'Ngày lập văn bản',
     ngay_giao: 'Ngày giao hàng',
-    ten_khach_hang: 'Tên khách hàng / Đối tác',
+    ngay_thang: 'Thời gian / Ngày tháng',
+    ten_khach_hang: 'Tên khách hàng / Đơn vị nhận',
     ten_cong_ty: 'Tên công ty',
     dia_chi: 'Địa chỉ',
     mst: 'Mã số thuế',
@@ -31,40 +43,55 @@ export function inferFriendlyLabel(key: string): string {
     email: 'Địa chỉ Email',
     noi_dung: 'Nội dung thực hiện',
     noi_dung_mua_ban: 'Nội dung mua bán',
-    tong_tien: 'Tổng số tiền',
+    can_cu_don_hang: 'Căn cứ đơn hàng / đợt',
+    can_cu: 'Căn cứ văn bản',
+    tong_tien: 'Tổng tiền thanh toán',
     so_tien: 'Số tiền thanh toán',
     gia_tri_hop_dong: 'Giá trị hợp đồng',
+    dieu_kien_thanh_toan: 'Điều kiện thanh toán',
     so_tien_bang_chu: 'Số tiền bằng chữ',
     ghi_chu: 'Ghi chú bổ sung',
     stt: 'STT',
     ten_hang: 'Tên hàng hóa / Hạng mục',
+    ten_vat_tu: 'Tên vật tư / Hàng hóa',
     don_vi: 'Đơn vị tính',
     so_luong: 'Số lượng',
-    don_gia: 'Đơn giá (VNĐ)',
-    thanh_tien: 'Thành tiền (VNĐ)'
+    don_gia: 'Đơn giá',
+    thanh_tien: 'Thành tiền'
   }
 
   if (mappings[lower]) return mappings[lower]
 
-  // Tách snake_case hoặc camelCase
+  // Bắt các trường có hậu tố số _1, _2...
+  const matchIndexed = lower.match(/^([a-z_]+)_(\d+)$/)
+  if (matchIndexed) {
+    const baseKey = matchIndexed[1]
+    const indexNum = matchIndexed[2]
+    if (mappings[baseKey]) {
+      return `${mappings[baseKey]} (Dòng ${indexNum})`
+    }
+  }
+
   let formatted = lower.replace(/_/g, ' ')
-  // Viết hoa chữ cái đầu
   formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1)
   return formatted
 }
 
-// Helper: Đoán loại dữ liệu từ tên trường hoặc nội dung mẫu
+// Helper: Đoán loại dữ liệu
 export function inferFieldType(key: string, sampleContent?: string): TemplateFieldType {
   const lowerKey = key.toLowerCase()
   const sample = (sampleContent || '').toLowerCase().trim()
 
-  if (/(ngay|thang|nam|date|thoi_gian)/.test(lowerKey) || /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(sample)) {
+  if (/(ngay|thang|nam|date|thoi_gian)/.test(lowerKey) || /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(sample) || /^ngày\s+\d{1,2}/.test(sample)) {
     return 'date'
   }
-  if (/(tien|gia|don_gia|tong_tien|tam_ung|thanh_toan|amount|price)/.test(lowerKey) || /[0-9.,]+\s*(đ|vnd|vnđ)/.test(sample)) {
+  if (
+    /(tien|gia|don_gia|tong_tien|tam_ung|thanh_toan|amount|price)/.test(lowerKey) ||
+    /^[0-9]{1,3}(?:\.[0-9]{3})+(?:\s*(?:đ|vnd|vnđ))?$/i.test(sample)
+  ) {
     return 'currency'
   }
-  if (/(so_luong|sl|qty|phan_tram|ty_le|percent)/.test(lowerKey)) {
+  if (/(so_luong|sl|qty|phan_tram|ty_le|percent)/.test(lowerKey) || /^[0-9]+(?:\.[0-9]+)?$/.test(sample)) {
     return 'number'
   }
   if (/(noi_dung|ghi_chu|mo_ta|dieu_khoan|pham_vi|content|desc)/.test(lowerKey) || sample.length > 50) {
@@ -76,153 +103,60 @@ export function inferFieldType(key: string, sampleContent?: string): TemplateFie
   return 'text'
 }
 
-// Helper: Phân tích ngữ cảnh đoạn văn xung quanh từ bôi đỏ
-export function analyzeRedContext(
-  prefix: string,
-  redText: string,
-  suffix: string,
-  immediatePrefix: string = ''
-): { key: string; label: string; type: TemplateFieldType; section: string } {
-  const cleanRed = redText.trim()
-  const pref = (immediatePrefix + ' ' + prefix).toLowerCase()
-  const suf = suffix.toLowerCase()
+// Helper: Kiểm tra xem một run có màu đỏ hoặc highlight đỏ không
+function isRunRed(runXml: string): boolean {
+  return (
+    /<w:color\s+[^>]*?w:val="(ff0000|red|c00000|ed1c24)"/i.test(runXml) ||
+    /<w:highlight\s+[^>]*?w:val="(red|magenta)"/i.test(runXml) ||
+    /<w:shd\s+[^>]*?w:fill="(ff0000|red|c00000|ed1c24)"/i.test(runXml)
+  );
+}
 
-  // 1. Chức vụ (kiểm tra trước Đại diện vì hay nằm ngay sau đại diện trên cùng đoạn)
-  if (/chức\s*vụ|vị\s*trí|title|position/i.test(pref)) {
-    return {
-      key: 'chuc_vu',
-      label: 'Chức vụ',
-      type: 'text',
-      section: 'Thông tin đại diện'
-    }
-  }
+// Helper: Trích xuất nội dung văn bản từ một thẻ run
+function getRunText(runXml: string): string {
+  const m = runXml.match(/<w:t\b[^>]*>([^<]*)<\/w:t>/)
+  return m ? m[1] : ''
+}
 
-  // 2. Đại diện / Người ký
-  if (/đại\s*diện|người\s*đại\s*diện/i.test(pref) || /^(ông|bà)\b/i.test(cleanRed)) {
-    return {
-      key: 'dai_dien',
-      label: 'Người đại diện',
-      type: 'text',
-      section: 'Thông tin đại diện'
-    }
-  }
+// Helper: Kiểm tra xem đoạn text có phải là tiêu đề cột bảng không
+function isTableHeaderText(text: string): boolean {
+  const clean = text.trim().toLowerCase()
+  return /^(stt|tên\s*hàng|tên\s*vật\s*tư|tên\s*sản\s*phẩm|hàng\s*hóa|đơn\s*vị|đvt|đơn\s*vị\s*tính|số\s*lượng|sl|qty|đơn\s*giá|thành\s*tiền|ghi\s*chú|diễn\s*giải|quy\s*cách)(?:\s*\(.*?\))?$/i.test(clean)
+}
 
-  // 3. Tên khách hàng / Công ty
-  if (/kính\s*gửi|khách\s*hàng|bên\s*mua|bên\s*b|bên\s*a|đơn\s*vị\s*nhận|tên\s*công\s*ty/i.test(pref)) {
-    return {
-      key: 'ten_khach_hang',
-      label: 'Tên khách hàng / Đơn vị',
-      type: 'text',
-      section: 'Thông tin đối tác'
-    }
-  }
+// Helper: Chuẩn hóa tên đơn vị / công ty để gộp trùng lặp
+function normalizeEntityText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[.,\-_/\\()]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
-  // 4. Mã số thuế
-  if (/mã\s*số\s*thuế|mst/i.test(pref)) {
-    return {
-      key: 'mst',
-      label: 'Mã số thuế (MST)',
-      type: 'text',
-      section: 'Thông tin pháp lý'
-    }
-  }
+interface ParsedElement {
+  raw: string
+  text: string
+  isRed: boolean
+  isTab: boolean
+}
 
-  // 5. Địa chỉ
-  if (/địa\s*chỉ|trụ\s*sở/i.test(pref)) {
-    return {
-      key: 'dia_chi',
-      label: 'Địa chỉ trụ sở',
-      type: 'text',
-      section: 'Thông tin pháp lý'
-    }
-  }
-
-  // 6. Số tài khoản
-  if (/tài\s*khoản|stk|ngân\s*hàng/i.test(pref)) {
-    return {
-      key: 'tai_khoan',
-      label: 'Số tài khoản ngân hàng',
-      type: 'text',
-      section: 'Thông tin thanh toán'
-    }
-  }
-
-  // 7. Số điện thoại / Hotline
-  if (/điện\s*thoại|sđt|hotline|tel|phone/i.test(pref)) {
-    return {
-      key: 'so_dien_thoai',
-      label: 'Số điện thoại',
-      type: 'text',
-      section: 'Thông tin liên hệ'
-    }
-  }
-
-  // 8. Số hợp đồng / văn bản
-  if (/số\s*hợp\s*đồng|số\s*hđ|hợp\s*đồng\s*số|số\s*biên\s*bản|số\s*báo\s*giá|số\s*đề\s*nghị|số:/i.test(pref)) {
-    return {
-      key: 'so_hd',
-      label: 'Số hợp đồng / Mã văn bản',
-      type: 'text',
-      section: 'Thông tin chung'
-    }
-  }
-
-  // 9. Số tiền / Giá trị thanh toán
-  if (
-    /số\s*tiền|tổng\s*tiền|giá\s*trị|đơn\s*giá|tạm\s*ứng|thanh\s*toán|kinh\s*phí/i.test(pref) ||
-    /[0-9.,]+\s*(đ|vnd|vnđ)/i.test(cleanRed) ||
-    /(đ|vnd|vnđ|đồng)\b/i.test(suf)
-  ) {
-    return {
-      key: 'so_tien',
-      label: 'Số tiền / Giá trị',
-      type: 'currency',
-      section: 'Tài chính'
-    }
-  }
-
-  // 10. Ngày tháng
-  if (/ngày|tháng|năm|thời\s*gian/i.test(pref) || /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(cleanRed)) {
-    return {
-      key: 'ngay_thang',
-      label: 'Thời gian / Ngày tháng',
-      type: 'date',
-      section: 'Thời gian'
-    }
-  }
-
-  // 11. Nội dung dài
-  if (/nội\s*dung|ghi\s*chú|phạm\s*vi|mô\s*tả|yêu\s*cầu/i.test(pref) || cleanRed.length > 50) {
-    return {
-      key: 'noi_dung',
-      label: 'Nội dung thực hiện',
-      type: 'textarea',
-      section: 'Nội dung'
-    }
-  }
-
-  // Fallback: Tạo key dựa trên chữ đỏ không dấu
-  const safeSlug =
-    cleanRed
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 20) || 'truong_du_lieu'
-
-  return {
-    key: safeSlug,
-    label: cleanRed.length < 25 ? cleanRed : inferFriendlyLabel(safeSlug),
-    type: inferFieldType(safeSlug, cleanRed),
-    section: 'Thông tin bổ sung'
-  }
+interface RedCluster {
+  pIdx: number
+  text: string
+  prefix: string
+  suffix?: string
+  elements: ParsedElement[]
+  isHeader?: boolean
+  isRowIndex?: boolean
+  assignedKey?: string
+  assignedLabel?: string
+  assignedType?: TemplateFieldType
+  assignedSection?: string
+  cleanValue?: string
 }
 
 /**
- * Hàm phân tích file Word:
- * - Chế độ 1: Dò tìm các cụm văn bản màu đỏ (hoặc highlight đỏ) theo yêu cầu thông minh của người dùng
- * - Chế độ 2: Dò tìm các thẻ chuẩn docxtemplater {tag}, {{tag}}, [tag] và bảng lặp {#loop}
+ * Phân tích cấu trúc file Word thông minh
  */
 export async function analyzeDocxTemplate(filePath: string): Promise<AnalyzedTemplateResult> {
   try {
@@ -257,84 +191,321 @@ export async function analyzeDocxTemplate(filePath: string): Promise<AnalyzedTem
 
     let docXml = docXmlFile.asText()
     const detectedFieldsMap = new Map<string, TemplateField>()
-    let redFieldCount = 0
     let isRedTextDetected = false
 
-    // ===== BƯỚC 1: Quét các đoạn văn bản bôi ĐỎ trong Word =====
-    docXml = docXml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (pFull) => {
-      // Quét tất cả các run <w:r> trong paragraph
-      const runRegex = /<w:r\b[^>]*>([\s\S]*?)<\/w:r>/g
-      const runs: Array<{ raw: string; text: string; isRed: boolean }> = []
+    // ===== BƯỚC 1: Quét và bóc tách các đoạn văn (paragraphs) cùng các thẻ con =====
+    const pRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g
+    let pMatch: RegExpExecArray | null
+    const paragraphs: Array<{ raw: string; elements: ParsedElement[]; fullText: string }> = []
+
+    while ((pMatch = pRegex.exec(docXml)) !== null) {
+      const pFull = pMatch[0]
+      const rRegex = /<w:r\b[^>]*>([\s\S]*?)<\/w:r>/g
       let rMatch: RegExpExecArray | null
+      const elements: ParsedElement[] = []
 
-      while ((rMatch = runRegex.exec(pFull)) !== null) {
-        const runContent = rMatch[1]
-        const colorMatch = runContent.match(/<w:color\s+[^>]*?w:val="([^"]+)"/i)
-        const highlightMatch = runContent.match(/<w:highlight\s+[^>]*?w:val="([^"]+)"/i)
-        const textMatch = runContent.match(/<w:t\b[^>]*>([^<]*)<\/w:t>/)
-        const text = textMatch ? textMatch[1] : ''
-        const color = colorMatch ? colorMatch[1].toLowerCase() : ''
-        const highlight = highlightMatch ? highlightMatch[1].toLowerCase() : ''
-
-        // Các mã màu đỏ chuẩn trong Microsoft Word: FF0000, red, C00000, ED1C24, hoặc highlight red
-        const isRed = /^(ff0000|red|c00000|ed1c24)$/i.test(color) || highlight === 'red'
-        runs.push({ raw: rMatch[0], text, isRed })
+      while ((rMatch = rRegex.exec(pFull)) !== null) {
+        const isTab = /<w:tab\/>/.test(rMatch[0])
+        const isRed = isRunRed(rMatch[0])
+        elements.push({
+          raw: rMatch[0],
+          text: getRunText(rMatch[0]),
+          isRed,
+          isTab
+        })
       }
+      paragraphs.push({ raw: pFull, elements, fullText: elements.map(e => e.text).join('') })
+    }
 
-      let modifiedParagraph = pFull
+    // ===== BƯỚC 2: Thuật toán Đóng cụm chữ bôi ĐỎ (Red Cluster Merging) =====
+    const redClusters: RedCluster[] = []
 
-      // Xử lý các run màu đỏ tìm thấy
-      for (let i = 0; i < runs.length; i++) {
-        if (runs[i].isRed && runs[i].text.trim()) {
-          isRedTextDetected = true
-          redFieldCount++
+    paragraphs.forEach((p, pIdx) => {
+      const elements = p.elements
+      let currentCluster: RedCluster | null = null
 
-          const prefix = runs.slice(Math.max(0, i - 2), i).map((r) => r.text).join('').trim()
-          const suffix = runs.slice(i + 1, i + 3).map((r) => r.text).join('').trim()
-          const immediatePrefix = runs[i - 1]?.text || ''
-          const analysis = analyzeRedContext(prefix, runs[i].text, suffix, immediatePrefix)
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i]
 
-          // Đảm bảo key không bị trùng lặp, nếu trùng thì thêm hậu tố _2, _3
-          let finalKey = analysis.key
-          let counter = 2
-          while (detectedFieldsMap.has(finalKey) && detectedFieldsMap.get(finalKey)?.defaultValue !== runs[i].text.trim()) {
-            finalKey = `${analysis.key}_${counter++}`
+        // Phân cách cột bằng Tab
+        if (el.isTab) {
+          if (currentCluster && currentCluster.text.trim()) {
+            redClusters.push(currentCluster)
+            currentCluster = null
           }
+          continue
+        }
 
-          if (!detectedFieldsMap.has(finalKey)) {
-            detectedFieldsMap.set(finalKey, {
-              id: String(Date.now() + Math.random()),
-              key: finalKey,
-              label: analysis.label,
-              type: analysis.type,
-              section: analysis.section,
-              required: true,
-              defaultValue: runs[i].text.trim(),
-              placeholder: `Nhập ${analysis.label.toLowerCase()}...`
-            })
+        if (el.isRed) {
+          if (!currentCluster) {
+            const prefix = elements.slice(0, i).filter(x => !x.isTab).map(x => x.text).join('').trim()
+            currentCluster = {
+              pIdx,
+              text: el.text,
+              prefix,
+              elements: [el]
+            }
+          } else {
+            currentCluster.text += el.text
+            currentCluster.elements.push(el)
           }
-
-          // Thay thế đoạn run màu đỏ trong XML bằng thẻ {finalKey} màu bình thường
-          const replacementRun = runs[i].raw
-            .replace(/<w:color\b[^>]*?(?:\/>|>[\s\S]*?<\/w:color>)/gi, '')
-            .replace(/<w:highlight\b[^>]*?(?:\/>|>[\s\S]*?<\/w:highlight>)/gi, '')
-            .replace(/<w:t\b[^>]*>[\s\S]*?<\/w:t>/gi, `<w:t>{${finalKey}}</w:t>`)
-
-          modifiedParagraph = modifiedParagraph.replace(runs[i].raw, replacementRun)
+        } else {
+          // Xử lý khoảng trắng giữa 2 run đỏ liên tiếp
+          if (currentCluster && !el.text.trim() && i + 1 < elements.length && elements[i + 1].isRed) {
+            currentCluster.text += el.text
+            currentCluster.elements.push(el)
+          } else if (currentCluster) {
+            if (currentCluster.text.trim()) {
+              redClusters.push(currentCluster)
+            }
+            currentCluster = null
+          }
         }
       }
 
-      return modifiedParagraph
+      if (currentCluster && currentCluster.text.trim()) {
+        redClusters.push(currentCluster)
+      }
+    })
+
+    if (redClusters.length > 0) {
+      isRedTextDetected = true
+    }
+
+    // ===== BƯỚC 3: Nhận diện Ngữ Cảnh Tiếng Việt Thông Minh & Deduplication =====
+    const entityToKeyMap = new Map<string, string>()
+    const usedKeys = new Map<string, boolean>()
+    const rowNumbersCount: Record<number, number> = {}
+    let itemRowCounter = 0
+    let subtotalCounter = 0
+    let lastItemPIdx = -1
+
+    redClusters.forEach((c) => {
+      const rawText = c.text.trim()
+
+      // 1. Tiêu đề cột bảng -> Giữ lại làm chữ cố định, không tạo trường nhập liệu
+      if (isTableHeaderText(rawText)) {
+        c.isHeader = true
+        return
+      }
+
+      // 2. Số thứ tự đầu dòng (1, 2, 3...)
+      if (/^[0-9]{1,2}$/.test(rawText) && Number(rawText) <= 30 && !c.prefix) {
+        c.isRowIndex = true
+        if (c.pIdx !== lastItemPIdx) {
+          itemRowCounter++
+          lastItemPIdx = c.pIdx
+        }
+        return
+      }
+
+      // 3. Nhận diện các cột trong bảng hàng hóa / vật tư
+      if (c.pIdx === lastItemPIdx && itemRowCounter > 0) {
+        if (/^[0-9]+(?:\.[0-9]+)*$/.test(rawText)) {
+          const numCount = (rowNumbersCount[itemRowCounter] || 0) + 1
+          rowNumbersCount[itemRowCounter] = numCount
+          const num = Number(rawText.replace(/\./g, ''))
+
+          if (numCount === 1 && num <= 50000) {
+            c.assignedKey = `so_luong_${itemRowCounter}`
+            c.assignedLabel = `Số lượng (Dòng ${itemRowCounter})`
+            c.assignedType = 'number'
+            c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+          } else if (numCount === 2 || (numCount === 1 && num > 50000)) {
+            c.assignedKey = `don_gia_${itemRowCounter}`
+            c.assignedLabel = `Đơn giá (Dòng ${itemRowCounter})`
+            c.assignedType = 'currency'
+            c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+          } else {
+            c.assignedKey = `thanh_tien_${itemRowCounter}`
+            c.assignedLabel = `Thành tiền (Dòng ${itemRowCounter})`
+            c.assignedType = 'currency'
+            c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+          }
+        } else if (/^(m3|m²|m|tấn|kg|bao|cái|bộ|lô|chuyến)$/i.test(rawText)) {
+          c.assignedKey = `don_vi_${itemRowCounter}`
+          c.assignedLabel = `Đơn vị tính (Dòng ${itemRowCounter})`
+          c.assignedType = 'text'
+          c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+        } else if (rawText.length > 20 || /mỏ|bảo hành|giao hàng|tiêu chuẩn/i.test(rawText)) {
+          c.assignedKey = `ghi_chu_${itemRowCounter}`
+          c.assignedLabel = `Ghi chú (Dòng ${itemRowCounter})`
+          c.assignedType = 'text'
+          c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+        } else {
+          c.assignedKey = `ten_vat_tu_${itemRowCounter}`
+          c.assignedLabel = `Tên vật tư / Hàng hóa (Dòng ${itemRowCounter})`
+          c.assignedType = 'text'
+          c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+        }
+      } else {
+        // 4. Nhận diện các thông tin chính của văn bản
+        const normEntity = normalizeEntityText(rawText)
+        if (/công\s*ty|tập\s*đoàn|doanh\s*nghiệp/i.test(normEntity) && normEntity.length > 15) {
+          if (entityToKeyMap.has(normEntity)) {
+            c.assignedKey = entityToKeyMap.get(normEntity)
+            return
+          }
+        }
+
+        // Bằng chữ
+        if (/^\(?bằng\s*chữ\s*:\s*/i.test(rawText) || /đồng\s*\.\/\.\s*\)?$/i.test(rawText)) {
+          c.assignedKey = 'so_tien_bang_chu'
+          c.assignedLabel = 'Số tiền bằng chữ'
+          c.assignedType = 'text'
+          c.assignedSection = 'Tài chính & Thanh toán'
+          c.cleanValue = rawText.replace(/^\(?bằng\s*chữ\s*:\s*/i, '').replace(/\)?$/i, '').trim()
+        }
+        // Điều kiện thanh toán / Tổng tiền
+        else if (/^tổng\s*tiền\s*:\s*/i.test(rawText)) {
+          c.assignedKey = 'dieu_kien_thanh_toan'
+          c.assignedLabel = 'Điều kiện thanh toán'
+          c.assignedType = 'text'
+          c.assignedSection = 'Tài chính & Thanh toán'
+          c.cleanValue = rawText.replace(/^tổng\s*tiền\s*:\s*/i, '').trim()
+        }
+        // Ngày tháng năm lập văn bản
+        else if (/khánh\s*hòa|hà\s*nội|tp\.?hcm|ngày/i.test(c.prefix) || /^ngày\s+\d{1,2}\s+tháng/i.test(rawText)) {
+          c.assignedKey = 'ngay_lap'
+          c.assignedLabel = 'Ngày lập văn bản'
+          c.assignedType = 'date'
+          c.assignedSection = 'Thông tin chung'
+        }
+        // Kính gửi / Đơn vị khách hàng
+        else if (/kính\s*gửi|khách\s*hàng|bên\s*mua|bên\s*b/i.test(c.prefix) || /công\s*ty|tập\s*đoàn/i.test(rawText)) {
+          c.assignedKey = 'ten_khach_hang'
+          c.assignedLabel = 'Tên đơn vị / Khách hàng'
+          c.assignedType = 'text'
+          c.assignedSection = 'Thông tin đối tác'
+          entityToKeyMap.set(normEntity, 'ten_khach_hang')
+        }
+        // Căn cứ đơn hàng / đợt
+        else if (/căn\s*cứ|hợp\s*đồng|đơn\s*đặt\s*hàng/i.test(c.prefix) || /^đặt\s*hàng\s*đợt/i.test(rawText)) {
+          c.assignedKey = 'can_cu_don_hang'
+          c.assignedLabel = 'Căn cứ đơn hàng / đợt'
+          c.assignedType = 'text'
+          c.assignedSection = 'Thông tin chung'
+        }
+        // Tổng tiền (số tiền lớn) / Thành tiền từng dòng
+        else if (/^[0-9]{1,3}(?:\.[0-9]{3})+(?:\s*(?:đ|vnd|vnđ))?$/i.test(rawText)) {
+          if (subtotalCounter < itemRowCounter) {
+            subtotalCounter++
+            c.assignedKey = `thanh_tien_${subtotalCounter}`
+            c.assignedLabel = `Thành tiền (Dòng ${subtotalCounter})`
+            c.assignedType = 'currency'
+            c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+          } else {
+            c.assignedKey = 'tong_tien'
+            c.assignedLabel = 'Tổng tiền thanh toán'
+            c.assignedType = 'currency'
+            c.assignedSection = 'Tài chính & Thanh toán'
+          }
+        }
+        // Ghi chú hoặc thông tin bổ sung
+        else if (rawText.length > 20 || /mỏ|bảo hành|giao hàng|tiêu chuẩn/i.test(rawText)) {
+          if (itemRowCounter > 0 && !usedKeys.has(`ghi_chu_${itemRowCounter}`)) {
+            c.assignedKey = `ghi_chu_${itemRowCounter}`
+            c.assignedLabel = `Ghi chú (Dòng ${itemRowCounter})`
+            c.assignedType = 'text'
+            c.assignedSection = 'Chi tiết hàng hóa / Vật tư'
+          } else {
+            c.assignedKey = 'ghi_chu'
+            c.assignedLabel = 'Ghi chú bổ sung'
+            c.assignedType = 'text'
+            c.assignedSection = 'Thông tin bổ sung'
+          }
+        }
+        // Fallback
+        else {
+          const slug = rawText
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .slice(0, 20) || 'truong_du_lieu'
+          c.assignedKey = slug
+          c.assignedLabel = rawText.length < 30 ? rawText : inferFriendlyLabel(slug)
+          c.assignedType = 'text'
+          c.assignedSection = 'Thông tin bổ sung'
+        }
+      }
+
+      // Xử lý chống trùng key nếu nội dung khác nhau
+      if (c.assignedKey) {
+        let finalKey = c.assignedKey
+        let counter = 2
+        while (
+          detectedFieldsMap.has(finalKey) &&
+          detectedFieldsMap.get(finalKey)?.defaultValue !== (c.cleanValue || rawText)
+        ) {
+          finalKey = `${c.assignedKey}_${counter++}`
+        }
+        c.assignedKey = finalKey
+
+        if (!detectedFieldsMap.has(finalKey)) {
+          detectedFieldsMap.set(finalKey, {
+            id: String(Date.now() + Math.random()),
+            key: finalKey,
+            label: c.assignedLabel || inferFriendlyLabel(finalKey),
+            type: c.assignedType || 'text',
+            section: c.assignedSection || 'Thông tin bổ sung',
+            required: true,
+            defaultValue: c.cleanValue || rawText,
+            placeholder: `Nhập ${(c.assignedLabel || inferFriendlyLabel(finalKey)).toLowerCase()}...`
+          })
+        }
+      }
+    })
+
+    // ===== BƯỚC 4: Thay thế mã biến {tag} vào XML chính xác =====
+    let newDocXml = docXml
+
+    redClusters.forEach((c) => {
+      const firstEl = c.elements[0]
+      const restEls = c.elements.slice(1)
+
+      // Nếu là tiêu đề hoặc số thứ tự: chỉ gỡ màu đỏ để chữ trở về bình thường, không thay bằng {tag}
+      if (c.isHeader || c.isRowIndex) {
+        c.elements.forEach((el) => {
+          const stripped = el.raw
+            .replace(/<w:color\b[^>]*?(?:\/>|>[\s\S]*?<\/w:color>)/gi, '')
+            .replace(/<w:highlight\b[^>]*?(?:\/>|>[\s\S]*?<\/w:highlight>)/gi, '')
+            .replace(/<w:shd\b[^>]*?(?:\/>|>[\s\S]*?<\/w:shd>)/gi, '')
+          newDocXml = newDocXml.replace(el.raw, stripped)
+        })
+        return
+      }
+
+      if (c.assignedKey) {
+        // Element đầu tiên thay bằng {tag} và gỡ màu đỏ
+        let repFirst = firstEl.raw
+          .replace(/<w:color\b[^>]*?(?:\/>|>[\s\S]*?<\/w:color>)/gi, '')
+          .replace(/<w:highlight\b[^>]*?(?:\/>|>[\s\S]*?<\/w:highlight>)/gi, '')
+          .replace(/<w:shd\b[^>]*?(?:\/>|>[\s\S]*?<\/w:shd>)/gi, '')
+        repFirst = repFirst.replace(/<w:t\b[^>]*>[\s\S]*?<\/w:t>/i, `<w:t>{${c.assignedKey}}</w:t>`)
+        newDocXml = newDocXml.replace(firstEl.raw, repFirst)
+
+        // Các element tiếp theo trong cùng cụm thì làm rỗng text và gỡ màu đỏ
+        restEls.forEach((el) => {
+          let repRest = el.raw
+            .replace(/<w:color\b[^>]*?(?:\/>|>[\s\S]*?<\/w:color>)/gi, '')
+            .replace(/<w:highlight\b[^>]*?(?:\/>|>[\s\S]*?<\/w:highlight>)/gi, '')
+            .replace(/<w:shd\b[^>]*?(?:\/>|>[\s\S]*?<\/w:shd>)/gi, '')
+          repRest = repRest.replace(/<w:t\b[^>]*>[\s\S]*?<\/w:t>/i, '<w:t></w:t>')
+          newDocXml = newDocXml.replace(el.raw, repRest)
+        })
+      }
     })
 
     let processedDocxBase64: string | undefined = undefined
     if (isRedTextDetected) {
-      zip.file('word/document.xml', docXml)
+      zip.file('word/document.xml', newDocXml)
       const newBuf = zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' })
       processedDocxBase64 = newBuf.toString('base64')
     }
 
-    // ===== BƯỚC 2: Quét các thẻ có sẵn qua InspectModule =====
+    // ===== BƯỚC 5: Quét thêm các thẻ docxtemplater có sẵn {tag} nếu có =====
     let normalTagCount = 0
     let hasTable = false
 
@@ -397,7 +568,6 @@ export async function analyzeDocxTemplate(filePath: string): Promise<AnalyzedTem
       console.warn('Lỗi phân tích thẻ docxtemplater thông thường:', inspectErr)
     }
 
-    // Tên gợi ý cho template từ file gốc
     const rawFileName = basename(filePath, '.docx')
     const friendlyTitle = inferFriendlyLabel(rawFileName.replace(/[-_]/g, ' '))
 
@@ -406,7 +576,7 @@ export async function analyzeDocxTemplate(filePath: string): Promise<AnalyzedTem
       templateName: friendlyTitle,
       fields: Array.from(detectedFieldsMap.values()),
       isRedTextDetected,
-      redFieldCount,
+      redFieldCount: detectedFieldsMap.size,
       normalTagCount,
       hasTable,
       processedDocxBase64

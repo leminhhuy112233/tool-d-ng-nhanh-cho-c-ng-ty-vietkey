@@ -73,12 +73,26 @@ const api: ElectronAPI = {
   ) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_SAVE, template, processedDocxBase64),
   deleteCustomTemplate: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_DELETE, id),
   getCustomTemplateById: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_GET, id),
+  updateCustomTemplate: (
+    id: string,
+    templateData: Partial<CustomTemplateDef>,
+    processedDocxBase64?: string,
+    changeNote?: string
+  ) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_UPDATE, id, templateData, processedDocxBase64, changeNote),
+  getTemplateVersions: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_VERSIONS, id),
+  rollbackCustomTemplateVersion: (id: string, targetVersion: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_CUSTOM_ROLLBACK, id, targetVersion),
   exportCustomDocument: (
     templateId: string,
     data: Record<string, any>,
     targetPath: string,
     exportType?: ExportFileType
   ) => ipcRenderer.invoke(IPC_CHANNELS.DOCUMENT_EXPORT_CUSTOM, templateId, data, targetPath, exportType),
+  renderPreviewDocx: (
+    type: 'quotation' | 'contract' | 'advance' | 'custom',
+    data: any,
+    customTemplateId?: string
+  ) => ipcRenderer.invoke(IPC_CHANNELS.DOCUMENT_RENDER_PREVIEW_DOCX, type, data, customTemplateId),
 
   // App info
   getAppVersion: () => {

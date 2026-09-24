@@ -1848,7 +1848,7 @@ export function PdfTools() {
           {/* Danh sách tệp gần đây (Recent Documents) */}
           <div className="pdf-recent-section" style={{ width: '100%', maxWidth: '880px', marginTop: '28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Tài liệu mở gần đây
               </span>
               <button
@@ -1856,10 +1856,10 @@ export function PdfTools() {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#38bdf8',
+                  color: 'var(--accent)',
                   fontSize: '12px',
                   cursor: 'pointer',
-                  fontWeight: 500
+                  fontWeight: 600
                 }}
               >
                 Mở tệp khác...
@@ -1876,32 +1876,32 @@ export function PdfTools() {
                     justifyContent: 'space-between',
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    background: 'rgba(30, 41, 59, 0.4)',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    background: 'var(--card)',
+                    border: '1px solid var(--border)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(30, 41, 59, 0.8)'
-                    e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)'
+                    e.currentTarget.style.background = 'var(--muted)'
+                    e.currentTarget.style.borderColor = 'var(--primary)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(30, 41, 59, 0.4)'
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+                    e.currentTarget.style.background = 'var(--card)'
+                    e.currentTarget.style.borderColor = 'var(--border)'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ padding: '6px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
+                    <div style={{ padding: '6px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.12)', color: 'var(--accent)' }}>
                       <FileText size={16} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#f8fafc' }}>{rf.name}</div>
-                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>{rf.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
                         {rf.pageCount ? `${rf.pageCount} trang • ` : ''}{rf.size || ''}
                       </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{rf.date}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{rf.date}</div>
                 </div>
               ))}
             </div>
